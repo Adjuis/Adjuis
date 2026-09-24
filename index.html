@@ -1,10 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Adjuis</title>
-<meta name="description" content="Adjuis — the creative house of C Mecca. Visual branding &amp; design.">
 <style>
   :root{
     --line:rgba(255,255,255,.35);
@@ -51,15 +45,17 @@
     white-space:nowrap;
     font-size:12px; letter-spacing:.2em; text-transform:uppercase;
     color:#f7f6f4;
-    opacity:0;
-    transition:opacity .6s cubic-bezier(.4,0,.2,1);
   }
-  .tagline-line.is-first{ opacity:1; }
+  .tagline-line .ch{
+    display:inline-block;
+    white-space:pre;
+    opacity:1;
+    transition:opacity .22s ease;
+  }
+  .tagline-line.is-second .ch{ opacity:0; }
   @media (max-width:340px){
     .tagline-line{ letter-spacing:.11em; }
   }
-  .tagline-swap.swapped .is-first{ opacity:0; }
-  .tagline-swap.swapped .is-second{ opacity:1; }
 
   .cta{
     margin-top:64px;
@@ -126,8 +122,6 @@
     *{animation-duration:.01ms !important; transition-duration:.01ms !important;}
   }
 </style>
-</head>
-<body>
 
 <video id="bgVideo" muted loop playsinline autoplay></video>
 
@@ -182,11 +176,11 @@
   var bgVideo = document.getElementById('bgVideo');
   if(!bgVideo){ return; }
   var sources = [
-    'assets/videos/bg-original.mp4',
-    'assets/videos/bg-fluid-gold-purple.mp4',
-    'assets/videos/bg-pink-purple-clouds.mp4',
-    'assets/videos/bg-swirling-purple-orange.mp4',
-    'assets/videos/bg-swirling-liquid-purple-gold.mp4'
+    'assets/videos/bg-original.mp4', // original (seamless loop, forward only)
+    'assets/videos/bg-fluid-gold-purple.mp4', // fluid motion, gold & purple (seamless loop, forward only)
+    'assets/videos/bg-pink-purple-clouds.mp4', // pink & purple clouds (seamless loop, forward only)
+    'assets/videos/bg-swirling-purple-orange.mp4', // swirling purple & orange paint with gold (seamless loop, forward only)
+    'assets/videos/bg-swirling-liquid-purple-gold.mp4'  // swirling liquid purple & gold (seamless loop, forward only)
   ];
   var pick = sources[Math.floor(Math.random() * sources.length)];
   bgVideo.src = pick;
@@ -216,21 +210,59 @@
 
 (function(){
   var taglineSwap = document.getElementById('taglineSwap');
-  if(!taglineSwap){ return; }
-  // plain copy swap -- no particles, no per-letter animation. The first
-  // line simply fades out as the second fades in (the .tagline-line
-  // opacity transition already declared in CSS handles that crossfade).
+  var first = document.getElementById('taglineFirst');
+  var second = document.getElementById('taglineSecond');
+  if(!taglineSwap || !first || !second){ return; }
+
+  // Split each line's text into one span per character so opacity can be
+  // driven letter by letter instead of on the line as a whole.
+  function splitChars(el){
+    var text = el.textContent;
+    el.textContent = '';
+    for(var i = 0; i < text.length; i++){
+      var span = document.createElement('span');
+      span.className = 'ch';
+      span.textContent = text[i];
+      el.appendChild(span);
+    }
+    return el.querySelectorAll('.ch');
+  }
+
+  var firstChars = splitChars(first);
+  var secondChars = splitChars(second);
+
+  var STAGGER = 16;   // ms between each letter's turn, left to right
+  var OUT_DUR = 220;  // how long one letter takes to lose its opacity
+  var IN_DUR = 260;   // how long one letter takes to gain it back
+  var OVERLAP = 1;    // incoming line waits until the outgoing sweep fully clears (same grid cell -- any overlap garbles the two strings together)
+
+  function letterWipe(outChars, inChars){
+    var last = 0;
+    outChars.forEach(function(ch, i){
+      var delay = i * STAGGER;
+      ch.style.transition = 'opacity ' + OUT_DUR + 'ms ease ' + delay + 'ms';
+      ch.style.opacity = '0';
+      last = delay + OUT_DUR;
+    });
+    setTimeout(function(){
+      inChars.forEach(function(ch, i){
+        var delay = i * STAGGER;
+        ch.style.transition = 'opacity ' + IN_DUR + 'ms ease ' + delay + 'ms';
+        ch.style.opacity = '1';
+      });
+    }, last * OVERLAP);
+  }
+
   var holdTime = 5000;
   setTimeout(function(){
-    taglineSwap.classList.add('swapped');
+    letterWipe(firstChars, secondChars);
   }, holdTime);
 })();
 
 (function(){
   // some mobile browsers won't follow a mailto: link when the page is inside a
-  // sandboxed iframe; forcing it through window.open on the click gesture
-  // itself is the reliable workaround, and it's harmless on a normal
-  // top-level page too.
+  // sandboxed iframe (as a published artifact is); forcing it through window.open
+  // on the click gesture itself is the reliable workaround.
   var btn = document.getElementById('ctaBtn');
   if(!btn){ return; }
   btn.addEventListener('click', function(e){
@@ -241,6 +273,3 @@
   });
 })();
 </script>
-
-</body>
-</html>
