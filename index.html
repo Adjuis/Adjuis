@@ -1,4 +1,5 @@
 <title>Adjuis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root{
     --line:rgba(255,255,255,.35);
@@ -68,6 +69,14 @@
     transition:background .3s ease, border-color .3s ease, transform .3s ease;
   }
   .cta:hover{ background:rgba(0,0,0,.28); border-color:#f7c3da; transform:translateY(-1px); }
+  .cta-label-short{ display:none; }
+
+  @media (max-width:600px){
+    .tagline-line{ font-size:15px; letter-spacing:.14em; }
+    .cta{ font-size:14px; letter-spacing:.1em; padding:11px 24px; }
+    .cta-label-full{ display:none; }
+    .cta-label-short{ display:inline; }
+  }
 
   .awards-flank{
     margin-top:64px;
@@ -141,7 +150,7 @@
     <span class="tagline-line is-second" id="taglineSecond">Visual Branding &amp; Design</span>
   </div>
 
-  <a class="cta" id="ctaBtn" href="mailto:info@adjuis.com" target="_blank" rel="noopener">Email for Consultation</a>
+  <a class="cta" id="ctaBtn" href="mailto:info@adjuis.com" target="_blank" rel="noopener"><span class="cta-label-full">Email for Consultation</span><span class="cta-label-short">Contact</span></a>
 
   <div class="awards-flank">
     <img class="laurel laurel-left" src="assets/logos/laurel-left.png" alt="">
