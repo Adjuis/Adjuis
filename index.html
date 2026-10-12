@@ -71,11 +71,25 @@
   .cta:hover{ background:rgba(0,0,0,.28); border-color:#f7c3da; transform:translateY(-1px); }
   .cta-label-short{ display:none; }
 
+  .cta-alt{
+    margin-top:16px;
+    font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    color:rgba(247,246,244,.78);
+  }
+  .cta-alt a{
+    color:#f7f6f4;
+    border-bottom:1px solid rgba(243,167,198,.55);
+    padding-bottom:2px;
+    transition:border-color .3s ease, color .3s ease;
+  }
+  .cta-alt a:hover{ border-color:#f7c3da; }
+
   @media (max-width:600px){
     .tagline-line{ font-size:15px; letter-spacing:.14em; }
     .cta{ font-size:14px; letter-spacing:.1em; padding:11px 24px; }
     .cta-label-full{ display:none; }
     .cta-label-short{ display:inline; }
+    .cta-alt{ font-size:12px; letter-spacing:.1em; }
   }
 
   .awards-flank{
@@ -106,27 +120,6 @@
     .laurel{ display:block; }
   }
 
-  .cm-mark{
-    margin-top:64px;
-    display:flex; align-items:center;
-    padding:10px; border-radius:100px;
-  }
-  .cm-svg{ height:11px; width:auto; overflow:visible; }
-  .cm-part{
-    fill:#f7f6f4;
-    transform-box:view-box;
-    transform:translateX(127.22px);
-    transition:transform .6s cubic-bezier(.4,0,.2,1);
-  }
-  .cm-ecca{
-    fill:#f7f6f4;
-    transform-box:fill-box; transform-origin:0% 50%;
-    opacity:0; transform:translateX(-8px) scale(.92);
-    transition:opacity .6s cubic-bezier(.4,0,.2,1), transform .6s cubic-bezier(.4,0,.2,1);
-  }
-  .cm-mark:hover .cm-part, .cm-mark.auto-expanded .cm-part{ transform:translateX(0); }
-  .cm-mark:hover .cm-ecca, .cm-mark.auto-expanded .cm-ecca{ opacity:1; transform:translateX(0) scale(1); transition-delay:.15s; }
-
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.01ms !important; transition-duration:.01ms !important;}
   }
@@ -150,7 +143,11 @@
     <span class="tagline-line is-second" id="taglineSecond">Visual Branding &amp; Design</span>
   </div>
 
-  <a class="cta" id="ctaBtn" href="mailto:info@adjuis.com" target="_blank" rel="noopener"><span class="cta-label-full">Email for Consultation</span><span class="cta-label-short">Contact</span></a>
+  <a class="cta" id="bookBtn" href="https://cal.com/adjuis/consultation" target="_blank" rel="noopener"><span class="cta-label-full">Book a Call</span><span class="cta-label-short">Book a Call</span></a>
+
+  <div class="cta-alt">
+    <a id="ctaBtn" href="mailto:info@adjuis.com" target="_blank" rel="noopener">Email</a>
+  </div>
 
   <div class="awards-flank">
     <img class="laurel laurel-left" src="assets/logos/laurel-left.png" alt="">
@@ -164,20 +161,33 @@
     <img class="laurel laurel-right" src="assets/logos/laurel-right.png" alt="">
   </div>
 
-  <a class="cm-mark" aria-label="C Mecca" href="https://cmecca.com" target="_blank" rel="noopener">
-    <svg class="cm-svg" viewBox="0 0 355.55 59.93" xmlns="http://www.w3.org/2000/svg">
-      <g class="cm-part">
-        <path d="M87.11.81s-17.12,39.45-19.53,44.93c-2.69-6.12-11.99-27.57-12.06-27.7C51,7.88,40.83.78,29.01.78,13.01.78,0,13.8,0,29.79s13.01,29.01,29.01,29.01c7.96,0,15.17-3.24,20.41-8.45l-4.69-10.25c-3.37,5.12-9.15,8.51-15.72,8.51-10.38,0-18.83-8.45-18.83-18.83S18.63,10.96,29.01,10.96c7.44,0,13.87,4.35,16.92,10.63h.01s17.15,37.5,17.15,37.5h8.97s14.52-31.8,18.21-39.88c0,8.7,0,39.88,0,39.88h10.84s0-58.28,0-58.28h-14Z"/>
-      </g>
-      <g class="cm-ecca">
-        <polygon points="126.49 49.94 126.49 33.96 154.63 33.96 154.63 25.05 126.49 25.05 126.49 9.99 158.21 9.99 158.21 .83 115.67 .83 115.67 59.1 159.37 59.1 159.37 49.94 126.49 49.94"/>
-        <path d="M198.3,59.93c-4.49,0-8.63-.74-12.4-2.21-3.77-1.47-7.06-3.57-9.86-6.28-2.8-2.72-4.98-5.88-6.53-9.49-1.55-3.61-2.33-7.6-2.33-11.99s.78-8.38,2.33-11.99c1.55-3.61,3.75-6.77,6.58-9.49,2.83-2.72,6.13-4.81,9.9-6.28,3.77-1.47,7.91-2.21,12.4-2.21,4.77,0,9.13.82,13.07,2.46,3.94,1.64,7.27,4.07,9.99,7.28l-6.99,6.58c-2.16-2.27-4.55-3.98-7.16-5.12-2.61-1.14-5.41-1.71-8.41-1.71s-5.84.5-8.37,1.5c-2.53,1-4.72,2.41-6.58,4.24-1.86,1.83-3.32,4-4.37,6.49-1.05,2.5-1.58,5.24-1.58,8.24s.53,5.74,1.58,8.24c1.05,2.5,2.51,4.66,4.37,6.49,1.86,1.83,4.05,3.25,6.58,4.24,2.52,1,5.31,1.5,8.37,1.5s5.8-.57,8.41-1.71c2.61-1.14,4.99-2.87,7.16-5.2l6.99,6.58c-2.72,3.22-6.05,5.66-9.99,7.32-3.94,1.66-8.32,2.5-13.15,2.5Z"/>
-        <path d="M261.15,59.93c-4.49,0-8.63-.74-12.4-2.21-3.77-1.47-7.06-3.57-9.86-6.28-2.8-2.72-4.98-5.88-6.53-9.49-1.55-3.61-2.33-7.6-2.33-11.99s.78-8.38,2.33-11.99c1.55-3.61,3.75-6.77,6.58-9.49,2.83-2.72,6.13-4.81,9.9-6.28,3.77-1.47,7.91-2.21,12.4-2.21,4.77,0,9.13.82,13.07,2.46,3.94,1.64,7.27,4.07,9.99,7.28l-6.99,6.58c-2.16-2.27-4.55-3.98-7.16-5.12-2.61-1.14-5.41-1.71-8.41-1.71s-5.84.5-8.37,1.5c-2.53,1-4.72,2.41-6.58,4.24-1.86,1.83-3.32,4-4.37,6.49-1.05,2.5-1.58,5.24-1.58,8.24s.53,5.74,1.58,8.24c1.05,2.5,2.51,4.66,4.37,6.49,1.86,1.83,4.05,3.25,6.58,4.24,2.52,1,5.31,1.5,8.37,1.5s5.8-.57,8.41-1.71c2.61-1.14,4.99-2.87,7.16-5.2l6.99,6.58c-2.72,3.22-6.05,5.66-9.99,7.32-3.94,1.66-8.32,2.5-13.15,2.5Z"/>
-        <path d="M344.15,59.1h11.4L329.25.83h-10.65l-26.22,58.26h11.07l5.79-13.48h29.14l5.77,13.48ZM312.89,37.12l10.95-25.5,10.91,25.5h-21.86Z"/>
-      </g>
-    </svg>
-  </a>
 </section>
+
+
+<script>
+// Cal.com booking popup: opens the consultation calendar over the page instead of
+// leaving the site. If the embed can't load, the button still links to cal.com.
+(function (C, A, L) { var p = function (a, ar) { a.q.push(ar); }; var d = C.document; C.Cal = C.Cal || function () { var cal = C.Cal; var ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { var api = function () { p(api, arguments); }; var namespace = ar[1]; api.q = api.q || []; if (typeof namespace === "string") { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]); } else p(cal, ar); return; } p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
+Cal("init", "consultation", { origin: "https://cal.com" });
+Cal.ns.consultation("ui", { theme: "dark", hideEventTypeDetails: false, layout: "month_view", cssVarsPerTheme: { dark: { "cal-brand": "#f3a7c6" } } });
+(function(){
+  var b = document.getElementById('bookBtn');
+  if(!b){ return; }
+  b.addEventListener('click', function(e){
+    // keep visitors on the page; if the popup hasn't appeared shortly after the
+    // click (embed blocked or offline), fall back to opening the booking page
+    e.preventDefault();
+    var href = b.getAttribute('href');
+    try { Cal.ns.consultation("modal", { calLink: "adjuis/consultation", config: { layout: "month_view", theme: "dark" } }); } catch(err) {}
+    setTimeout(function(){
+      if(!document.querySelector('cal-modal-box')){
+        var win = window.open(href, '_blank');
+        if(!win){ window.location.href = href; }
+      }
+    }, 2500);
+  });
+})();
+</script>
 
 <script>
 (function(){
@@ -198,23 +208,6 @@
   if(playPromise && typeof playPromise.catch === 'function'){
     playPromise.catch(function(){ /* autoplay blocked -- video stays paused on first frame */ });
   }
-})();
-
-(function(){
-  var cmMark = document.querySelector('.cm-mark');
-  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(reduced || !cmMark){ return; }
-
-  // reveal to "C MECCA" shortly after load, hold for ~15s, then collapse back to "CM" once.
-  var showDelay = 900;   // let the page-in animation settle first
-  var holdTime = 15000;  // how long it stays expanded before animating off
-
-  setTimeout(function(){
-    cmMark.classList.add('auto-expanded');
-    setTimeout(function(){
-      cmMark.classList.remove('auto-expanded');
-    }, holdTime);
-  }, showDelay);
 })();
 
 (function(){
