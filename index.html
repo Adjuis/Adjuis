@@ -84,14 +84,6 @@
   }
   .cta-alt a:hover{ border-color:#f7c3da; }
 
-  @media (max-width:600px){
-    .tagline-line{ font-size:15px; letter-spacing:.14em; }
-    .cta{ font-size:14px; letter-spacing:.1em; padding:11px 24px; }
-    .cta-label-full{ display:none; }
-    .cta-label-short{ display:inline; }
-    .cta-alt{ font-size:12px; letter-spacing:.1em; }
-  }
-
   .awards-flank{
     margin-top:64px;
     display:flex; align-items:center; justify-content:center;
@@ -120,6 +112,20 @@
     .laurel{ display:block; }
   }
 
+  @media (max-width:600px){
+    .word-mark{ margin-bottom:20px; }
+    .tagline-line{ font-size:15px; letter-spacing:.14em; }
+    .cta{ font-size:14px; letter-spacing:.1em; padding:11px 24px; margin-top:61px; }
+    .cta-label-full{ display:none; }
+    .cta-label-short{ display:inline; }
+    .cta-alt{ font-size:12px; letter-spacing:.1em; }
+    .awards-flank{ margin-top:214px; }
+
+    /* shift logo/tagline/button/email-link down as a unit without disturbing
+       the flex centering that positions the awards row */
+    .word-mark, .tagline-swap, .cta, .cta-alt{ position:relative; top:60px; }
+  }
+
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.01ms !important; transition-duration:.01ms !important;}
   }
@@ -139,8 +145,8 @@
   </svg>
 
   <div class="tagline-swap" id="taglineSwap">
-    <span class="tagline-line is-first" id="taglineFirst">The Creative House of C Mecca</span>
-    <span class="tagline-line is-second" id="taglineSecond">Visual Branding &amp; Design</span>
+    <span class="tagline-line is-first" id="taglineFirst">Adj-wee</span>
+    <span class="tagline-line is-second" id="taglineSecond">A Design &amp; Branding House</span>
   </div>
 
   <a class="cta" id="bookBtn" href="https://cal.com/adjuis/consultation" target="_blank" rel="noopener"><span class="cta-label-full">Book a Call</span><span class="cta-label-short">Book a Call</span></a>
@@ -198,7 +204,6 @@ Cal.ns.consultation("ui", { theme: "dark", hideEventTypeDetails: false, layout: 
     'assets/videos/bg-original.mp4', // original (seamless loop, forward only)
     'assets/videos/bg-fluid-gold-purple.mp4', // fluid motion, gold & purple (seamless loop, forward only)
     'assets/videos/bg-pink-purple-clouds.mp4', // pink & purple clouds (seamless loop, forward only)
-    'assets/videos/bg-swirling-purple-orange.mp4', // swirling purple & orange paint with gold (seamless loop, forward only)
     'assets/videos/bg-swirling-liquid-purple-gold.mp4'  // swirling liquid purple & gold (seamless loop, forward only)
   ];
   var pick = sources[Math.floor(Math.random() * sources.length)];
