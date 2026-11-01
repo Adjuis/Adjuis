@@ -1,0 +1,796 @@
+<title>Adjuis / Client Questionnaire</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{
+    --ink:#141413;
+    --fill:#3a3a3a;
+    --fill-hover:#525252;
+    --paper:#ffffff;
+    --panel:#f0f0ef;
+    --panel-line:rgba(20,20,19,.12);
+    --accent:#f3a7c6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:120px;
+  }
+  button,a,input,textarea{font-family:inherit;}
+  button{cursor:pointer;}
+
+  header{ padding:26px 40px 10px; }
+  .mark-link{ display:inline-block; margin-bottom:22px; }
+  .mark{ display:block; height:16px; width:auto; }
+  .mark path{ fill:var(--ink); }
+  h1{ font-size:clamp(22px,3vw,28px); margin:0 0 8px; letter-spacing:-.01em; }
+  .page-client-sub{ display:none; font-size:13px; color:rgba(20,20,19,.5); margin:-2px 0 8px; }
+  .page-client-sub.is-visible{ display:block; }
+
+  main{ max-width:760px; margin:0 auto; padding:10px 40px 0; }
+
+  .client-block{ background:var(--panel); border-radius:14px; padding:22px 24px; margin:26px 0 24px; }
+  .client-block h2{ font-size:14px; text-transform:uppercase; letter-spacing:.08em; margin:0 0 16px; }
+  .field-row{ display:flex; flex-wrap:wrap; gap:12px; }
+  .field{ flex:1 1 220px; display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; font-weight:700; color:rgba(20,20,19,.6); }
+  .field input{
+    border:1px solid var(--panel-line); background:#fff;
+    border-radius:8px; padding:11px 13px; font-size:14px;
+  }
+  .field .req{ color:#b4482f; }
+
+  .start-row{ margin:0 0 40px; }
+  .start-msg{ font-size:13px; margin-top:10px; color:#b4482f; min-height:18px; }
+
+  /* ---------- One-question-at-a-time wizard ---------- */
+  .wizard-progress{ margin:0 0 22px; }
+  .wizard-pills-wrap{ display:flex; align-items:center; gap:8px; margin:0 0 8px; }
+  .wizard-pills{
+    display:flex; gap:8px; overflow-x:auto; scroll-behavior:smooth; padding:2px; scrollbar-width:none;
+  }
+  .wizard-pills::-webkit-scrollbar{ display:none; }
+  .wizard-pill{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--panel-line);
+    background:#fff; color:var(--ink); font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wizard-pill:hover{ border-color:var(--ink); }
+  .wizard-pill.is-answered{ border-color:var(--ink); }
+  .wizard-pill.is-current{ background:var(--fill); color:#fff; border-color:var(--fill); }
+  .wizard-pill-arrow{
+    flex:0 0 auto; width:26px; height:26px; border-radius:50%; border:1px solid var(--panel-line);
+    background:#fff; color:var(--ink); font-size:14px; display:flex; align-items:center; justify-content:center;
+  }
+  .wizard-pill-arrow:hover{ border-color:var(--ink); }
+  .wizard-progress-labels{ display:flex; flex-direction:column; gap:4px; }
+  .wizard-section-label{
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(20,20,19,.4);
+  }
+  /* Rollover copy for a hovered pill -- added 2026-11-02, same pattern as
+     the Client Meeting Assistant's pills, formatted with the question
+     number and section ahead of the question text. Always on its own
+     line below the section label (not side by side -- fixed 2026-11-02
+     so a long question's wrapped text doesn't push the question box
+     below up and down every time a different pill is hovered), with a
+     fixed height sized for two lines so the layout stays put whether the
+     text is short or wraps. */
+  .wizard-pill-hover-label{
+    font-size:11.5px; color:rgba(20,20,19,.4); line-height:1.4;
+    height:31px; overflow:hidden;
+  }
+  .wizard-step{ min-height:220px; margin:0 0 20px; }
+  .wizard-question{ font-size:18px; font-weight:700; line-height:1.4; margin:0 0 18px; max-width:600px; }
+  .wizard-step textarea{
+    width:100%; min-height:120px; resize:vertical;
+    border:1px solid var(--panel-line); background:var(--panel);
+    border-radius:10px; padding:14px 16px; font-size:15px; line-height:1.55;
+  }
+  .wizard-step textarea:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+  .wizard-step-hint{ font-size:12.5px; color:rgba(20,20,19,.5); margin:8px 0 0; }
+  .choice-row{ display:flex; flex-wrap:wrap; gap:10px; }
+  .choice-chip{
+    border:1px solid var(--panel-line); background:#fff; color:var(--ink);
+    border-radius:999px; padding:12px 22px; font-size:14px; font-weight:600;
+  }
+  .choice-chip:hover{ border-color:var(--ink); }
+  .choice-chip.is-selected{ background:var(--fill); color:#fff; border-color:var(--fill); }
+  .wizard-date-input{
+    border:1px solid var(--panel-line); background:var(--panel); color:var(--ink);
+    border-radius:8px; padding:11px 13px; font-size:14px; max-width:240px;
+  }
+  .wizard-date-input:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+
+  .wizard-nav{ display:flex; align-items:center; gap:14px; }
+  .wizard-btn{ font:inherit; border-radius:9px; padding:13px 28px; font-size:12px; letter-spacing:.1em; text-transform:uppercase; }
+  .wizard-btn.is-primary{ background:var(--fill); color:#fff; border:none; }
+  .wizard-btn.is-secondary{ background:none; border:1px solid var(--panel-line); color:var(--ink); }
+  .wizard-btn.is-secondary:disabled{ opacity:.35; cursor:default; }
+  .wizard-skip{ background:none; border:none; font-size:12.5px; color:rgba(20,20,19,.5); text-decoration:underline; margin-left:auto; }
+
+  .submit-row{ padding:20px 0 60px; }
+  .submit-cta{
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:14px 34px; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  }
+  .submit-cta:disabled{ background:rgba(20,20,19,.25); }
+  .submit-msg{ font-size:13px; margin-top:12px; min-height:18px; }
+  .submit-msg.is-bad{ color:#b4482f; }
+
+  .submit-success{ display:none; }
+  .submit-success-check{ color:#2f7d4f; font-weight:700; font-size:15px; margin:0 0 10px; }
+  .submit-success-copy{ font-size:13.5px; line-height:1.65; color:rgba(20,20,19,.75); margin:0 0 20px; max-width:420px; }
+
+  .copy-actions{ display:flex; flex-wrap:wrap; gap:10px; margin:0 0 16px; }
+  .copy-actions-btn{
+    font:inherit; font-size:13px; font-weight:700; padding:10px 16px; border-radius:999px;
+    border:1px solid var(--panel-line); background:#fff; color:var(--ink); cursor:pointer;
+  }
+  .copy-actions-btn:hover{ border-color:var(--ink); }
+  .copy-actions-msg{ font-size:12.5px; margin:0 0 4px; min-height:1em; color:rgba(20,20,19,.65); }
+  .copy-actions-msg.is-ok{ color:#2f7d4f; }
+  .copy-actions-msg.is-bad{ color:#b4482f; }
+
+  @media (max-width:640px){
+    header{ padding:22px 20px 6px; }
+    main{ padding:10px 20px 0; }
+    .client-block{ padding:18px; }
+    .wizard-question{ font-size:16.5px; }
+  }
+
+  /* ---------- Gate (Landing) -- same cloud-video opener as the Pricing
+     tool, just with this page's own title/copy. Sits on top of
+     everything (fixed, full-bleed) until "Begin" is clicked, then
+     hides to reveal the page underneath, which has been there the
+     whole time. */
+  #pageGate{ position:fixed; inset:0; z-index:999; display:flex; align-items:center; justify-content:center; }
+  #pageGate.is-hidden{ display:none; }
+  #gateVideo{ position:fixed; inset:0; z-index:0; width:100vw; height:100vh; object-fit:cover; background:#2a1f33; }
+  .gate-inner{
+    position:relative; z-index:1;
+    text-align:center; padding:0 24px; color:#fff;
+    opacity:0; animation:gateIn 1s ease .1s forwards;
+  }
+  @keyframes gateIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .gate-mark{ width:clamp(130px,16vw,180px); display:block; margin:0 auto 28px; }
+  .gate-mark path{ fill:#fff; }
+  .gate-title{ margin:0 0 18px; font-size:clamp(22px,3vw,30px); letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+  .gate-copy{ max-width:520px; margin:0 auto; font-size:15px; line-height:1.6; color:rgba(255,255,255,.88); }
+  .gate-cta{
+    margin-top:36px; display:inline-block; font:inherit;
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:13px 34px; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    transition:background .2s ease, transform .2s ease;
+  }
+  .gate-cta:hover{ background:var(--fill-hover); transform:translateY(-1px); }
+</style>
+
+<section id="pageGate">
+  <video id="gateVideo" muted loop playsinline autoplay></video>
+  <div class="gate-inner">
+    <svg class="gate-mark" viewBox="0 0 383.52 120.52" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 41.828125 52.769531 L 49.777344 32.105469 L 57.722656 52.769531 Z M 63.613281 4.921875 L 36.410156 4.921875 L 0.523438 87.015625 L 28.664062 87.015625 L 34.171875 72.710938 L 65.382812 72.710938 L 70.890625 87.015625 L 99.5 87.015625 L 63.613281 4.921875"/>
+      <path d="M 140.390625 61.859375 C 139.453125 63.773438 138.199219 65.199219 136.636719 66.136719 C 135.070312 67.078125 133.3125 67.546875 131.359375 67.546875 C 129.40625 67.546875 127.648438 67.078125 126.082031 66.136719 C 124.519531 65.199219 123.269531 63.773438 122.332031 61.859375 C 121.394531 59.945312 120.921875 57.617188 120.921875 54.878906 C 120.921875 52.066406 121.394531 49.742188 122.332031 47.902344 C 123.269531 46.066406 124.519531 44.679688 126.082031 43.742188 C 127.648438 42.800781 129.40625 42.332031 131.359375 42.332031 C 133.3125 42.332031 135.070312 42.800781 136.636719 43.742188 C 138.199219 44.679688 139.453125 46.066406 140.390625 47.902344 C 141.328125 49.742188 141.796875 52.066406 141.796875 54.878906 C 141.796875 57.617188 141.328125 59.945312 140.390625 61.859375 Z M 141.328125 0 L 141.328125 27.246094 C 140.5625 26.511719 139.742188 25.851562 138.863281 25.269531 C 135.269531 22.886719 130.65625 21.695312 125.027344 21.695312 C 119.476562 21.695312 114.335938 23.023438 109.605469 25.679688 C 104.875 28.339844 101.105469 32.152344 98.292969 37.113281 C 95.476562 42.082031 94.070312 48.003906 94.070312 54.878906 C 94.070312 61.761719 95.476562 67.683594 98.292969 72.648438 C 101.105469 77.613281 104.875 81.441406 109.605469 84.140625 C 114.335938 86.835938 119.476562 88.183594 125.027344 88.183594 C 130.96875 88.183594 135.71875 87.011719 139.277344 84.667969 C 140.511719 83.851562 141.617188 82.875 142.617188 81.75 L 142.617188 87.011719 L 167.832031 87.011719 L 167.832031 0 L 141.328125 0"/>
+      <path d="M 175.570312 0 L 175.570312 18.429688 L 202.074219 0 Z"/>
+      <path d="M 175.570312 41.296875 L 175.570312 92.601562 C 175.570312 95.179688 175.042969 97.058594 173.988281 98.230469 C 172.933594 99.402344 171.621094 99.988281 170.058594 99.988281 C 167.949219 99.988281 165.957031 99.480469 164.082031 98.464844 L 157.746094 116.875 C 159.78125 117.890625 162.222656 118.671875 165.078125 119.222656 C 167.929688 119.765625 170.917969 120.042969 174.046875 120.042969 C 182.878906 120.042969 189.761719 117.578125 194.6875 112.652344 C 199.609375 107.730469 202.074219 101.121094 202.074219 92.835938 L 202.074219 22.867188 L 175.570312 41.296875"/>
+      <path d="M 279.214844 22.859375 L 279.214844 87.015625 L 254.003906 87.015625 L 254.003906 81.035156 C 252.628906 82.445312 251.078125 83.636719 249.378906 84.613281 C 245.1875 86.996094 240.671875 88.1875 235.832031 88.1875 C 230.757812 88.1875 226.152344 87.140625 222.050781 85.082031 C 217.949219 83.003906 214.71875 79.753906 212.386719 75.347656 C 210.039062 70.921875 208.867188 65.230469 208.867188 58.277344 L 208.867188 22.859375 L 235.363281 22.859375 L 235.363281 53.707031 C 235.363281 58.242188 236.101562 61.402344 237.585938 63.207031 C 239.082031 64.996094 241.109375 65.898438 243.6875 65.898438 C 245.261719 65.898438 246.722656 65.484375 248.097656 64.671875 C 249.453125 63.859375 250.570312 62.488281 251.4375 60.570312 C 252.285156 58.65625 252.71875 56.128906 252.71875 53.003906 L 252.71875 22.859375 L 279.214844 22.859375"/>
+      <path d="M 286.640625 87.011719 L 286.640625 22.867188 L 313.144531 22.867188 L 313.144531 87.011719 L 286.640625 87.011719"/>
+      <path d="M 349.335938 88.183594 C 343.863281 88.183594 338.46875 87.597656 333.152344 86.425781 C 327.835938 85.253906 323.539062 83.730469 320.253906 81.851562 L 327.523438 64.378906 C 330.574219 66.179688 334.109375 67.585938 338.136719 68.601562 C 342.164062 69.617188 346.089844 70.125 349.921875 70.125 C 353.128906 70.125 355.296875 69.851562 356.429688 69.304688 C 357.5625 68.757812 358.132812 68.015625 358.132812 67.078125 C 358.132812 66.140625 357.464844 65.457031 356.136719 65.023438 C 354.808594 64.59375 353.046875 64.261719 350.863281 64.027344 C 348.671875 63.792969 346.265625 63.5 343.648438 63.148438 C 341.03125 62.796875 338.390625 62.269531 335.734375 61.566406 C 333.074219 60.859375 330.652344 59.804688 328.464844 58.398438 C 326.273438 56.992188 324.515625 55.097656 323.1875 52.710938 C 321.855469 50.328125 321.191406 47.296875 321.191406 43.621094 C 321.191406 39.558594 322.421875 35.882812 324.886719 32.601562 C 327.347656 29.316406 331.023438 26.679688 335.910156 24.683594 C 340.792969 22.691406 346.832031 21.695312 354.027344 21.695312 C 358.71875 21.695312 363.40625 22.125 368.097656 22.984375 C 372.789062 23.84375 376.816406 25.175781 380.175781 26.972656 L 372.90625 44.445312 C 369.621094 42.648438 366.398438 41.414062 363.230469 40.75 C 360.066406 40.085938 357.113281 39.753906 354.378906 39.753906 C 351.015625 39.753906 348.730469 40.066406 347.519531 40.691406 C 346.304688 41.316406 345.699219 42.023438 345.699219 42.800781 C 345.699219 43.742188 346.363281 44.445312 347.695312 44.914062 C 349.023438 45.382812 350.78125 45.734375 352.972656 45.96875 C 355.160156 46.203125 357.5625 46.496094 360.183594 46.847656 C 362.800781 47.199219 365.417969 47.746094 368.039062 48.488281 C 370.660156 49.234375 373.0625 50.308594 375.25 51.714844 C 377.4375 53.121094 379.199219 55.019531 380.527344 57.402344 C 381.859375 59.789062 382.523438 62.816406 382.523438 66.488281 C 382.523438 70.320312 381.308594 73.898438 378.886719 77.21875 C 376.464844 80.542969 372.789062 83.199219 367.863281 85.195312 C 362.9375 87.1875 356.761719 88.183594 349.335938 88.183594"/>
+    </svg>
+    <h1 class="gate-title">Client Questionnaire</h1>
+    <p class="gate-copy">Used once, at the start of a new relationship, before any specific project is scoped &mdash; it evaluates whether this is a fit and gives Adjuis the business context every later stage depends on. Corey can fill this out together with you on a call, or you can work through it on your own &mdash; the questions are the same either way, one at a time.</p>
+    <button type="button" class="gate-cta" id="gateBeginBtn">Begin</button>
+  </div>
+</section>
+
+<header>
+  <a class="mark-link" href="/" id="markLink" aria-label="Adjuis home">
+  <svg class="mark" viewBox="0 0 383.52 120.52" xmlns="http://www.w3.org/2000/svg">
+    <path d="M 41.828125 52.769531 L 49.777344 32.105469 L 57.722656 52.769531 Z M 63.613281 4.921875 L 36.410156 4.921875 L 0.523438 87.015625 L 28.664062 87.015625 L 34.171875 72.710938 L 65.382812 72.710938 L 70.890625 87.015625 L 99.5 87.015625 L 63.613281 4.921875"/>
+    <path d="M 140.390625 61.859375 C 139.453125 63.773438 138.199219 65.199219 136.636719 66.136719 C 135.070312 67.078125 133.3125 67.546875 131.359375 67.546875 C 129.40625 67.546875 127.648438 67.078125 126.082031 66.136719 C 124.519531 65.199219 123.269531 63.773438 122.332031 61.859375 C 121.394531 59.945312 120.921875 57.617188 120.921875 54.878906 C 120.921875 52.066406 121.394531 49.742188 122.332031 47.902344 C 123.269531 46.066406 124.519531 44.679688 126.082031 43.742188 C 127.648438 42.800781 129.40625 42.332031 131.359375 42.332031 C 133.3125 42.332031 135.070312 42.800781 136.636719 43.742188 C 138.199219 44.679688 139.453125 46.066406 140.390625 47.902344 C 141.328125 49.742188 141.796875 52.066406 141.796875 54.878906 C 141.796875 57.617188 141.328125 59.945312 140.390625 61.859375 Z M 141.328125 0 L 141.328125 27.246094 C 140.5625 26.511719 139.742188 25.851562 138.863281 25.269531 C 135.269531 22.886719 130.65625 21.695312 125.027344 21.695312 C 119.476562 21.695312 114.335938 23.023438 109.605469 25.679688 C 104.875 28.339844 101.105469 32.152344 98.292969 37.113281 C 95.476562 42.082031 94.070312 48.003906 94.070312 54.878906 C 94.070312 61.761719 95.476562 67.683594 98.292969 72.648438 C 101.105469 77.613281 104.875 81.441406 109.605469 84.140625 C 114.335938 86.835938 119.476562 88.183594 125.027344 88.183594 C 130.96875 88.183594 135.71875 87.011719 139.277344 84.667969 C 140.511719 83.851562 141.617188 82.875 142.617188 81.75 L 142.617188 87.011719 L 167.832031 87.011719 L 167.832031 0 L 141.328125 0"/>
+    <path d="M 175.570312 0 L 175.570312 18.429688 L 202.074219 0 Z"/>
+    <path d="M 175.570312 41.296875 L 175.570312 92.601562 C 175.570312 95.179688 175.042969 97.058594 173.988281 98.230469 C 172.933594 99.402344 171.621094 99.988281 170.058594 99.988281 C 167.949219 99.988281 165.957031 99.480469 164.082031 98.464844 L 157.746094 116.875 C 159.78125 117.890625 162.222656 118.671875 165.078125 119.222656 C 167.929688 119.765625 170.917969 120.042969 174.046875 120.042969 C 182.878906 120.042969 189.761719 117.578125 194.6875 112.652344 C 199.609375 107.730469 202.074219 101.121094 202.074219 92.835938 L 202.074219 22.867188 L 175.570312 41.296875"/>
+    <path d="M 279.214844 22.859375 L 279.214844 87.015625 L 254.003906 87.015625 L 254.003906 81.035156 C 252.628906 82.445312 251.078125 83.636719 249.378906 84.613281 C 245.1875 86.996094 240.671875 88.1875 235.832031 88.1875 C 230.757812 88.1875 226.152344 87.140625 222.050781 85.082031 C 217.949219 83.003906 214.71875 79.753906 212.386719 75.347656 C 210.039062 70.921875 208.867188 65.230469 208.867188 58.277344 L 208.867188 22.859375 L 235.363281 22.859375 L 235.363281 53.707031 C 235.363281 58.242188 236.101562 61.402344 237.585938 63.207031 C 239.082031 64.996094 241.109375 65.898438 243.6875 65.898438 C 245.261719 65.898438 246.722656 65.484375 248.097656 64.671875 C 249.453125 63.859375 250.570312 62.488281 251.4375 60.570312 C 252.285156 58.65625 252.71875 56.128906 252.71875 53.003906 L 252.71875 22.859375 L 279.214844 22.859375"/>
+    <path d="M 286.640625 87.011719 L 286.640625 22.867188 L 313.144531 22.867188 L 313.144531 87.011719 L 286.640625 87.011719"/>
+    <path d="M 349.335938 88.183594 C 343.863281 88.183594 338.46875 87.597656 333.152344 86.425781 C 327.835938 85.253906 323.539062 83.730469 320.253906 81.851562 L 327.523438 64.378906 C 330.574219 66.179688 334.109375 67.585938 338.136719 68.601562 C 342.164062 69.617188 346.089844 70.125 349.921875 70.125 C 353.128906 70.125 355.296875 69.851562 356.429688 69.304688 C 357.5625 68.757812 358.132812 68.015625 358.132812 67.078125 C 358.132812 66.140625 357.464844 65.457031 356.136719 65.023438 C 354.808594 64.59375 353.046875 64.261719 350.863281 64.027344 C 348.671875 63.792969 346.265625 63.5 343.648438 63.148438 C 341.03125 62.796875 338.390625 62.269531 335.734375 61.566406 C 333.074219 60.859375 330.652344 59.804688 328.464844 58.398438 C 326.273438 56.992188 324.515625 55.097656 323.1875 52.710938 C 321.855469 50.328125 321.191406 47.296875 321.191406 43.621094 C 321.191406 39.558594 322.421875 35.882812 324.886719 32.601562 C 327.347656 29.316406 331.023438 26.679688 335.910156 24.683594 C 340.792969 22.691406 346.832031 21.695312 354.027344 21.695312 C 358.71875 21.695312 363.40625 22.125 368.097656 22.984375 C 372.789062 23.84375 376.816406 25.175781 380.175781 26.972656 L 372.90625 44.445312 C 369.621094 42.648438 366.398438 41.414062 363.230469 40.75 C 360.066406 40.085938 357.113281 39.753906 354.378906 39.753906 C 351.015625 39.753906 348.730469 40.066406 347.519531 40.691406 C 346.304688 41.316406 345.699219 42.023438 345.699219 42.800781 C 345.699219 43.742188 346.363281 44.445312 347.695312 44.914062 C 349.023438 45.382812 350.78125 45.734375 352.972656 45.96875 C 355.160156 46.203125 357.5625 46.496094 360.183594 46.847656 C 362.800781 47.199219 365.417969 47.746094 368.039062 48.488281 C 370.660156 49.234375 373.0625 50.308594 375.25 51.714844 C 377.4375 53.121094 379.199219 55.019531 380.527344 57.402344 C 381.859375 59.789062 382.523438 62.816406 382.523438 66.488281 C 382.523438 70.320312 381.308594 73.898438 378.886719 77.21875 C 376.464844 80.542969 372.789062 83.199219 367.863281 85.195312 C 362.9375 87.1875 356.761719 88.183594 349.335938 88.183594"/>
+  </svg>
+  </a>
+  <h1 id="pageTitle">Client Questionnaire</h1>
+  <p class="page-client-sub" id="pageClientSub"></p>
+</header>
+
+<main>
+  <div id="qIntro">
+    <div class="client-block">
+      <h2>Who this is for</h2>
+      <div class="field-row">
+        <div class="field"><label>Your name <span class="req">*</span></label><input type="text" id="cName" required></div>
+        <div class="field"><label>Company</label><input type="text" id="cCompany"></div>
+      </div>
+      <div class="field-row" style="margin-top:12px;">
+        <div class="field"><label>Email <span class="req">*</span></label><input type="email" id="cEmail" required></div>
+        <div class="field"><label>Phone</label><input type="tel" id="cPhone"></div>
+      </div>
+    </div>
+    <div class="start-row">
+      <button type="button" class="submit-cta" id="qStartBtn">Begin Questionnaire</button>
+      <p class="start-msg" id="qStartMsg"></p>
+    </div>
+  </div>
+
+  <div id="qWizard" style="display:none;">
+    <div class="wizard-progress">
+      <div class="wizard-pills-wrap">
+        <button type="button" class="wizard-pill-arrow" id="wizardPillPrev" aria-label="Scroll questions left">&#8249;</button>
+        <div class="wizard-pills" id="wizardPills"></div>
+        <button type="button" class="wizard-pill-arrow" id="wizardPillNext" aria-label="Scroll questions right">&#8250;</button>
+      </div>
+      <div class="wizard-progress-labels">
+        <div class="wizard-section-label" id="wizardSectionLabel"></div>
+        <div class="wizard-pill-hover-label" id="wizardPillHoverLabel"></div>
+      </div>
+    </div>
+    <div class="wizard-step" id="wizardStep"></div>
+    <div class="wizard-nav">
+      <button type="button" class="wizard-btn is-secondary" id="wizardBackBtn">Back</button>
+      <button type="button" class="wizard-btn is-primary" id="wizardNextBtn">Next</button>
+      <button type="button" class="wizard-skip" id="wizardSkipBtn">Skip this one</button>
+    </div>
+  </div>
+
+  <div class="submit-success" id="qSubmitSuccess">
+    <p class="submit-success-check">&#10003; Received &mdash; thank you</p>
+    <p class="submit-success-copy">This has been sent to Adjuis and saved to your client file. Corey will follow up once it's been reviewed.</p>
+    <div class="copy-actions">
+      <button type="button" class="copy-actions-btn" id="qDownloadBtn">Download a copy</button>
+      <button type="button" class="copy-actions-btn" id="qEmailBtn">Email me a copy</button>
+    </div>
+    <p class="copy-actions-msg" id="qCopyMsg"></p>
+  </div>
+</main>
+
+<!-- Shared with the Pricing page -- PRICING, CATEGORIES, and the Project
+     Type / Budget question options below all come from this one file.
+     Edit the numbers in pricing-data.js and both pages update, no edit
+     needed here. Added 2026-11-02. -->
+<script src="pricing-data.js"></script>
+<script>
+/* Gate (landing) -- same cloud-video opener used on the Pricing tool.
+   Plays the background video and, on "Begin", hides the gate to reveal
+   the page underneath (which has been there all along). */
+(function(){
+  var v = document.getElementById('gateVideo');
+  if(v){
+    v.src = 'https://media.adjuis.com/bg-pink-purple-clouds.mp4';
+    var p = v.play();
+    if(p && p.catch){ p.catch(function(){}); }
+  }
+  var gate = document.getElementById('pageGate');
+  var beginBtn = document.getElementById('gateBeginBtn');
+  if(beginBtn && gate){
+    beginBtn.addEventListener('click', function(){
+      gate.classList.add('is-hidden');
+      if(v){ v.pause(); }
+    });
+  }
+})();
+
+/* Where this page's submissions and "email me a copy" requests get sent.
+   Paste in the same Google Apps Script Web App URL used on the pricing
+   page (see adjuis-estimates-Code.gs) -- this page POSTs with
+   type:'questionnaire' so that same script routes it to the right
+   client tab instead of the master Estimates sheet. Left blank, the
+   form still confirms locally but nothing is recorded remotely. */
+var SUBMIT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDV9zfsHs9aYV1C_p4VSwzOyAZStEUWsbNp0bEdsDN6B2d0E3PrywNQbvkhnilg7cVAQ/exec';
+
+/* ---------------------------------------------------------------------- */
+/* One question at a time, added 2026-10-24 -- replaces the old long
+   scrolling page. STEPS is a flat, ordered list; a step's showIf (when
+   present) is read against ANSWERS_BY_KEY and decides whether that step
+   is shown at all -- this is the "if a question can use more detail,
+   ask the detail question before moving on" behavior Corey asked for.
+   showIf returns true when the deciding question hasn't been reached
+   yet (so the progress bar doesn't prematurely shrink), and the real
+   skip decision only takes effect once that answer actually exists,
+   which is always true by the time a dependent step is reached since
+   every dependent step is placed immediately after the question it
+   depends on. */
+function showIfEquals(key, acceptedValues){
+  return function(byKey){
+    if(byKey[key] === undefined) return true;
+    return acceptedValues.indexOf(byKey[key]) !== -1;
+  };
+}
+
+/* Looks up a CATEGORIES entry (from pricing-data.js) by its title, the
+   same string stored as the answer to the Project Type question below --
+   used by the Budget step's dynamic options. */
+function categoryByTitle(title){
+  var found = CATEGORIES.filter(function(c){ return c.title === title; });
+  return found.length ? found[0] : null;
+}
+
+var STEPS = [
+  // A. Project Type -- added 2026-11-02, per Corey's request. Options come
+  // straight from CATEGORIES in pricing-data.js (shared with the Pricing
+  // page), so a new category added there shows up here automatically.
+  { section:'A. Project Type', type:'select', key:'projectCategory',
+    options:CATEGORIES.map(function(c){ return c.title; }),
+    q:'What kind of project is this?' },
+
+  // B. Business Fundamentals
+  { section:'B. Business Fundamentals', type:'text', q:'How does your business actually make money? Walk me through it.' },
+  { section:'B. Business Fundamentals', type:'yearsInBusiness', q:'How long have you been in business?',
+    rangeOptions:['Less than 1 year','1–3 years','3–5 years','5–10 years','10+ years'] },
+  { section:'B. Business Fundamentals', type:'text', q:'How would you describe your business model to a stranger in two sentences?' },
+
+  // C. The Project at a Glance
+  { section:'C. The Project at a Glance', type:'select', key:'projectType', options:['Brand new', 'A redesign'],
+    q:'Is this a brand new design, or a redesign of something that already exists?' },
+  { section:'C. The Project at a Glance', type:'text', showIf:showIfEquals('projectType', ['A redesign']),
+    q:'What specifically is not working about what you have now?' },
+  { section:'C. The Project at a Glance', type:'text',
+    q:'What prompted you to start this project right now, rather than six months ago or six months from now?' },
+
+  // D. Goals and Success
+  { section:'D. Goals and Success', type:'text', q:'What are your goals for this project, beyond a great logo or a nice website?' },
+  { section:'D. Goals and Success', type:'text', q:'If this project is a complete success a year from now, what has changed for the business?' },
+  { section:'D. Goals and Success', type:'text', q:'What does failure look like here? What would make you regret this investment?' },
+  { section:'D. Goals and Success', type:'text', q:'How big do you see this becoming, a year from now and five years from now? Small and lean on purpose, or built to scale with a real team?' },
+
+  // E. Team and Collaboration
+  { section:'E. Team and Collaboration', type:'text', q:'Who will be working on this project with you, day to day?' },
+  { section:'E. Team and Collaboration', type:'text', q:'Who has final approval, and who else has an opinion that matters?' },
+  { section:'E. Team and Collaboration', type:'select', key:'workedWithDesigners', options:['Yes', 'No'],
+    q:'Has your team worked with outside designers before?' },
+  { section:'E. Team and Collaboration', type:'text', showIf:showIfEquals('workedWithDesigners', ['Yes']),
+    q:'How did that go?' },
+  { section:'E. Team and Collaboration', type:'text', showIf:showIfEquals('workedWithDesigners', ['Yes']),
+    q:'What was the working style like with those creative firms or individuals specifically, and what worked and what did not?' },
+
+  // F. Timeline
+  { section:'F. Timeline', type:'textWithDate', dateLabel:'Target completion date',
+    q:'What is your target completion date, and is it flexible?' },
+  { section:'F. Timeline', type:'textWithDate', dateLabel:'Fixed date (if any)',
+    q:'Are there dates around this that are fixed and not open for discussion, a launch event, a trade show, a broadcast date?' },
+
+  // G. Concerns and Risk
+  { section:'G. Concerns and Risk', type:'text', q:'What are you worried about going into this?' },
+  { section:'G. Concerns and Risk', type:'select', key:'badExperience', options:['Yes', 'No'],
+    q:'Have you had a bad experience with a designer or agency before?' },
+  { section:'G. Concerns and Risk', type:'text', showIf:showIfEquals('badExperience', ['Yes']),
+    q:'What happened?' },
+  { section:'G. Concerns and Risk', type:'text', q:'Is there anything internal, budget, politics, timing, that could derail this project?' },
+
+  // H. Competitive Landscape
+  { section:'H. Competitive Landscape', type:'text', q:'Who are your competitors, direct and indirect?' },
+
+  // I. Budget & Decision Process -- moved here from brand-look-feel.html
+  // on 2026-11-02, per Corey's request. The investment-range question
+  // became a 3-option pick (also 2026-11-02) instead of free text, with
+  // the options computed fresh every time this step renders -- they come
+  // from INVESTMENT_TIERS in pricing-data.js, keyed off whatever category
+  // was picked on the Project Type question above, so changing a price in
+  // that one shared file updates this question too, no separate edit
+  // needed here.
+  { section:'I. Budget & Decision Process', type:'select', key:'investmentRange',
+    q:'What investment range have you set aside for this project?',
+    options:function(){
+      var cat = categoryByTitle(answersByKey.projectCategory);
+      var info = cat && INVESTMENT_TIERS[cat.key];
+      if(!info) return ['Not sure yet'];
+      return info.tiers.map(function(t){ return t.label; });
+    } },
+  { section:'I. Budget & Decision Process', type:'text', q:'How does your organization typically make purchasing or investment decisions like this one?' }
+
+  // Note: per Corey's 2026-10-30 restructuring notes --
+  //  - "How long have you been in business" is now a range chooser plus
+  //    a text box for "how did you get to this point" (type:'yearsInBusiness'),
+  //    instead of one open text question.
+  //  - "What is working well right now that we should protect and not
+  //    touch" moved to brand-look-feel.html.
+  //  - Both Timeline questions now carry a date field alongside their
+  //    text answer (type:'textWithDate').
+  //  - "What are your goals for this project" and "If this project is a
+  //    complete success a year from now" stay here AND were copied onto
+  //    the Kick-Off session in meeting-assistant.html, so Corey has them
+  //    as both a client-facing intake question and a live Kick-Off prompt.
+  //  - "Of those competitors, who do you admire", "Where do you believe
+  //    you are better than the competition", all three Audience
+  //    questions, the company-background question, the hidden-gem
+  //    question (plus its Yes follow-up), and both Budget and Investment
+  //    questions all moved to brand-look-feel.html.
+  //  - "What is the mission" and "What would the founders want people to
+  //    feel" moved to the Kick-Off session in meeting-assistant.html.
+  //  - Section K (Brand Look & Feel -- the inspiration/avoid questions
+  //    plus the matrices) was split out into its own standalone page,
+  //    brand-look-feel.html, back on 2026-10-24. All pages POST with
+  //    type:'questionnaire', so answers from any of them land in the
+  //    same client's Responses log.
+];
+
+/* ---------------------------------------------------------------------- */
+/* Wizard engine */
+var answersByIndex = {};  // every answered (or selected) step, by its STEPS index
+var answersByKey = {};    // just the steps with a `key`, for showIf lookups
+var current = 0;
+
+/* State for the two new combined step types (added 2026-10-30). Only one
+   'yearsInBusiness' step exists, so a couple of plain globals are enough
+   (same pattern as the matrix widgets on brand-look-feel.html); the two
+   'textWithDate' steps need their own slot each, keyed by STEPS index. */
+var yearsInBusinessRange = '';
+var yearsInBusinessDetail = '';
+var dateFieldValues = {};
+
+function stepIsVisible(step){
+  return !step.showIf || step.showIf(answersByKey) === true;
+}
+function findNext(fromIdx){
+  var i = fromIdx + 1;
+  while(i < STEPS.length && !stepIsVisible(STEPS[i])) i++;
+  return i; // may equal STEPS.length (end of questionnaire)
+}
+function findPrev(fromIdx){
+  var i = fromIdx - 1;
+  while(i >= 0 && !stepIsVisible(STEPS[i])) i--;
+  return i; // may be -1 (back to the intro screen)
+}
+function visibleTotal(){
+  return STEPS.filter(stepIsVisible).length;
+}
+function visiblePosition(idx){
+  var pos = 0;
+  for(var i = 0; i <= idx; i++){ if(stepIsVisible(STEPS[i])) pos++; }
+  return pos;
+}
+
+/* Clickable pill per visible question, replacing the old progress-bar +
+   "Question X of N" counter (added 2026-10-31) -- numbered by visible
+   position, filled in once answered, highlighted on the current one,
+   free to click to jump straight to any question. Scrolls horizontally
+   with the two arrow buttons (or a trackpad/touch swipe) when it's
+   longer than the available width. */
+function pillHoverText(stepIdx, pos){
+  // Just the number and question -- the section name already shows on
+  // the line above (see wizardSectionLabel in renderStep), so repeating
+  // it here was redundant. Fixed 2026-11-02.
+  return (pos + 1) + '. ' + STEPS[stepIdx].q;
+}
+function renderPills(idx){
+  var pillsHost = document.getElementById('wizardPills');
+  var hoverLabel = document.getElementById('wizardPillHoverLabel');
+  pillsHost.innerHTML = '';
+  var visIdxs = [];
+  STEPS.forEach(function(st, i){ if(stepIsVisible(st)) visIdxs.push(i); });
+  visIdxs.forEach(function(stepIdx, pos){
+    var pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'wizard-pill' +
+      (stepIdx === idx ? ' is-current' : '') +
+      (answersByIndex[stepIdx] ? ' is-answered' : '');
+    pill.textContent = String(pos + 1);
+    pill.addEventListener('click', function(){
+      if(stepIdx === current) return;
+      saveCurrentStepAnswer();
+      renderStep(stepIdx);
+    });
+    /* Rollover copy, not a native tooltip -- same pattern as the Client
+       Meeting Assistant's pills, swapping the small label next to the
+       section name to show this pill's number, section and question
+       while hovering, then reverting to the current question on
+       mouse-out. Added 2026-11-02. */
+    pill.addEventListener('mouseenter', function(){
+      hoverLabel.textContent = pillHoverText(stepIdx, pos);
+    });
+    pill.addEventListener('mouseleave', function(){
+      hoverLabel.textContent = pillHoverText(idx, visIdxs.indexOf(idx));
+    });
+    pillsHost.appendChild(pill);
+  });
+  var currentPos = visIdxs.indexOf(idx);
+  var currentPillEl = pillsHost.children[currentPos];
+  if(currentPillEl) currentPillEl.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+  hoverLabel.textContent = pillHoverText(idx, currentPos);
+}
+
+function renderStep(idx){
+  current = idx;
+  var step = STEPS[idx];
+  // Trailing colon added 2026-11-02 -- the hover label right below it is
+  // now just "number. question", so together they read as one line:
+  // "I. Budget & Decision Process:" / "24. What investment range..."
+  document.getElementById('wizardSectionLabel').textContent = step.section + ':';
+  renderPills(idx);
+
+  var host = document.getElementById('wizardStep');
+  host.innerHTML = '';
+  var qEl = document.createElement('p');
+  qEl.className = 'wizard-question';
+  qEl.textContent = step.q;
+  host.appendChild(qEl);
+
+  if(step.type === 'text'){
+    var ta = document.createElement('textarea');
+    ta.id = 'wizardInput';
+    ta.value = answersByIndex[idx] || '';
+    host.appendChild(ta);
+    setTimeout(function(){ ta.focus(); }, 0);
+  } else if(step.type === 'select'){
+    var row = document.createElement('div');
+    row.className = 'choice-row';
+    row.id = 'wizardChoiceRow';
+    // options is usually a fixed array, but the Budget question's options
+    // are a function instead -- computed fresh each render from whatever
+    // category was picked on the Project Type question (see STEPS above).
+    var optionsList = (typeof step.options === 'function') ? step.options() : step.options;
+    optionsList.forEach(function(opt){
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'choice-chip';
+      chip.textContent = opt;
+      chip.dataset.value = opt;
+      if(answersByIndex[idx] === opt) chip.classList.add('is-selected');
+      chip.addEventListener('click', function(){
+        row.querySelectorAll('.choice-chip').forEach(function(c){ c.classList.remove('is-selected'); });
+        chip.classList.add('is-selected');
+        answersByIndex[idx] = opt;
+        answersByKey[step.key] = opt;
+      });
+      row.appendChild(chip);
+    });
+    host.appendChild(row);
+  } else if(step.type === 'yearsInBusiness'){
+    var chooserRow = document.createElement('div');
+    chooserRow.className = 'choice-row';
+    step.rangeOptions.forEach(function(opt){
+      var rChip = document.createElement('button');
+      rChip.type = 'button';
+      rChip.className = 'choice-chip';
+      rChip.textContent = opt;
+      if(yearsInBusinessRange === opt) rChip.classList.add('is-selected');
+      rChip.addEventListener('click', function(){
+        chooserRow.querySelectorAll('.choice-chip').forEach(function(c){ c.classList.remove('is-selected'); });
+        rChip.classList.add('is-selected');
+        yearsInBusinessRange = opt;
+      });
+      chooserRow.appendChild(rChip);
+    });
+    host.appendChild(chooserRow);
+
+    var yibHint = document.createElement('p');
+    yibHint.className = 'wizard-step-hint';
+    yibHint.style.margin = '18px 0 8px';
+    yibHint.textContent = 'And how did you get to this point?';
+    host.appendChild(yibHint);
+
+    var yibTa = document.createElement('textarea');
+    yibTa.id = 'wizardInput';
+    yibTa.value = yearsInBusinessDetail;
+    host.appendChild(yibTa);
+    setTimeout(function(){ yibTa.focus(); }, 0);
+  } else if(step.type === 'textWithDate'){
+    var dLabel = document.createElement('label');
+    dLabel.className = 'wizard-step-hint';
+    dLabel.style.display = 'block';
+    dLabel.style.margin = '0 0 8px';
+    dLabel.textContent = step.dateLabel;
+    host.appendChild(dLabel);
+
+    var dInput = document.createElement('input');
+    dInput.type = 'date';
+    dInput.className = 'wizard-date-input';
+    dInput.id = 'wizardDateInput';
+    dInput.value = (dateFieldValues[idx] && dateFieldValues[idx].date) || '';
+    host.appendChild(dInput);
+
+    var dTa = document.createElement('textarea');
+    dTa.id = 'wizardInput';
+    dTa.style.marginTop = '14px';
+    dTa.value = (dateFieldValues[idx] && dateFieldValues[idx].text) || '';
+    host.appendChild(dTa);
+  }
+
+  // Back is never disabled, even on the first question -- goBack() already
+  // knows to return to the intro screen once there's no earlier question.
+  document.getElementById('wizardBackBtn').disabled = false;
+  var isLast = findNext(idx) >= STEPS.length;
+  document.getElementById('wizardNextBtn').textContent = isLast ? 'Submit Questionnaire' : 'Next';
+  document.getElementById('wizardSkipBtn').style.display = (step.type === 'select') ? 'none' : '';
+}
+
+function saveCurrentStepAnswer(){
+  var step = STEPS[current];
+  if(step.type === 'text'){
+    var ta = document.getElementById('wizardInput');
+    answersByIndex[current] = ta ? ta.value.trim() : '';
+  } else if(step.type === 'yearsInBusiness'){
+    var yibTa = document.getElementById('wizardInput');
+    yearsInBusinessDetail = yibTa ? yibTa.value.trim() : '';
+    var yibParts = [];
+    if(yearsInBusinessRange) yibParts.push(yearsInBusinessRange);
+    if(yearsInBusinessDetail) yibParts.push(yearsInBusinessDetail);
+    answersByIndex[current] = yibParts.join(' — ');
+  } else if(step.type === 'textWithDate'){
+    var dEl = document.getElementById('wizardDateInput');
+    var dTa = document.getElementById('wizardInput');
+    var dateVal = dEl ? dEl.value : '';
+    var textVal = dTa ? dTa.value.trim() : '';
+    dateFieldValues[current] = { date:dateVal, text:textVal };
+    var dParts = [];
+    if(dateVal) dParts.push(step.dateLabel + ': ' + dateVal);
+    if(textVal) dParts.push(textVal);
+    answersByIndex[current] = dParts.join(' — ');
+  }
+  // 'select' steps already save onto answersByIndex/answersByKey at click time
+}
+
+function goNext(){
+  saveCurrentStepAnswer();
+  var next = findNext(current);
+  if(next >= STEPS.length){
+    submitQuestionnaire();
+    return;
+  }
+  renderStep(next);
+}
+function goBack(){
+  saveCurrentStepAnswer();
+  var prev = findPrev(current);
+  if(prev === -1){
+    document.getElementById('qWizard').style.display = 'none';
+    document.getElementById('qIntro').style.display = '';
+    document.getElementById('pageClientSub').textContent = '';
+    document.getElementById('pageClientSub').classList.remove('is-visible');
+    return;
+  }
+  renderStep(prev);
+}
+
+function getClientLabel(){
+  var company = document.getElementById('cCompany').value.trim();
+  var name = document.getElementById('cName').value.trim();
+  return company || name || 'Client';
+}
+
+document.getElementById('wizardNextBtn').addEventListener('click', goNext);
+document.getElementById('wizardBackBtn').addEventListener('click', goBack);
+document.getElementById('wizardPillPrev').addEventListener('click', function(){
+  document.getElementById('wizardPills').scrollBy({ left:-120, behavior:'smooth' });
+});
+document.getElementById('wizardPillNext').addEventListener('click', function(){
+  document.getElementById('wizardPills').scrollBy({ left:120, behavior:'smooth' });
+});
+document.getElementById('wizardSkipBtn').addEventListener('click', function(){
+  var skipType = STEPS[current].type;
+  if(skipType === 'text'){
+    var ta = document.getElementById('wizardInput'); if(ta) ta.value = '';
+  } else if(skipType === 'yearsInBusiness'){
+    yearsInBusinessRange = ''; yearsInBusinessDetail = '';
+    var yibTa = document.getElementById('wizardInput'); if(yibTa) yibTa.value = '';
+  } else if(skipType === 'textWithDate'){
+    dateFieldValues[current] = { date:'', text:'' };
+    var dEl = document.getElementById('wizardDateInput'); if(dEl) dEl.value = '';
+    var dTa = document.getElementById('wizardInput'); if(dTa) dTa.value = '';
+  }
+  goNext();
+});
+
+document.getElementById('qStartBtn').addEventListener('click', function(){
+  var name = document.getElementById('cName').value.trim();
+  var email = document.getElementById('cEmail').value.trim();
+  var msg = document.getElementById('qStartMsg');
+  if(!name || !email){
+    msg.textContent = 'Add a name and email first so this lands on the right client file.';
+    return;
+  }
+  msg.textContent = '';
+  document.getElementById('qIntro').style.display = 'none';
+  document.getElementById('qWizard').style.display = '';
+  document.getElementById('pageClientSub').textContent = 'For ' + getClientLabel();
+  document.getElementById('pageClientSub').classList.add('is-visible');
+  renderStep(findNext(-1));
+});
+
+/* Logo click -- added 2026-10-31. Mid-questionnaire, it jumps back to
+   the first question rather than navigating away (there's no unsaved-
+   work warning, so leaving by accident would lose whatever wasn't
+   saved yet); on the intro screen, it just scrolls back up to the top. */
+document.getElementById('markLink').addEventListener('click', function(ev){
+  ev.preventDefault();
+  var inWizard = document.getElementById('qWizard').style.display !== 'none';
+  if(inWizard){
+    saveCurrentStepAnswer();
+    renderStep(findNext(-1));
+  } else {
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+});
+
+/* ---------------------------------------------------------------------- */
+function buildSummaryText(title, fields){
+  var lines = [title, ''];
+  fields.forEach(function(f){
+    if(f[1] === null || f[1] === undefined || f[1] === '') return;
+    lines.push(f[0] + ': ' + f[1]);
+  });
+  lines.push('', 'Adjuis — the creative house of C Mecca', 'adjuis.com');
+  return lines.join('\n');
+}
+function downloadSummaryText(filename, text){
+  var blob = new Blob([text], { type:'text/plain;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+function emailSummaryCopy(email, subject, text, msgEl){
+  if(!email){ msgEl.textContent = 'Add your email above first.'; msgEl.className = 'copy-actions-msg is-bad'; return; }
+  if(!SUBMIT_ENDPOINT){ msgEl.textContent = "Email delivery isn't connected in this preview."; msgEl.className = 'copy-actions-msg is-bad'; return; }
+  msgEl.textContent = 'Sending...'; msgEl.className = 'copy-actions-msg';
+  fetch(SUBMIT_ENDPOINT, {
+    method:'POST', mode:'no-cors',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ type:'emailCopy', email: email, subject: subject, body: text, submittedAt: new Date().toISOString() })
+  }).then(function(){ msgEl.textContent = 'Sent — check your inbox in a minute.'; msgEl.className = 'copy-actions-msg is-ok'; })
+    .catch(function(){ msgEl.textContent = 'Something went wrong, try the download instead.'; msgEl.className = 'copy-actions-msg is-bad'; });
+}
+
+var lastSubmission = null;
+
+function submitQuestionnaire(){
+  var name = document.getElementById('cName').value.trim();
+  var email = document.getElementById('cEmail').value.trim();
+  var company = document.getElementById('cCompany').value.trim();
+  var phone = document.getElementById('cPhone').value.trim();
+
+  var answers = [];
+  STEPS.forEach(function(step, idx){
+    if(!stepIsVisible(step)) return;
+    var val = answersByIndex[idx];
+    if(val) answers.push({ question: step.q, answer: val });
+  });
+
+  var payload = { type:'questionnaire', name:name, email:email, company:company, phone:phone, answers:answers, submittedAt:new Date().toISOString() };
+  lastSubmission = payload;
+
+  function done(ok){
+    if(ok){
+      document.getElementById('qWizard').style.display = 'none';
+      document.getElementById('qSubmitSuccess').style.display = 'block';
+    } else {
+      var host = document.getElementById('wizardStep');
+      var err = document.createElement('p');
+      err.className = 'submit-msg is-bad';
+      err.textContent = 'Something went wrong sending that, try Submit again in a moment.';
+      host.appendChild(err);
+    }
+  }
+  if(!SUBMIT_ENDPOINT){ done(true); return; }
+  fetch(SUBMIT_ENDPOINT, {
+    method:'POST', mode:'no-cors',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).then(function(){ done(true); }).catch(function(){ done(false); });
+}
+
+function questionnaireSummary(){
+  if(!lastSubmission) return { text:'', filename:'adjuis-questionnaire.txt', email:'' };
+  var p = lastSubmission;
+  var fields = [['Name', p.name], ['Company', p.company], ['Email', p.email], ['Phone', p.phone]];
+  p.answers.forEach(function(qa){ fields.push([qa.question, qa.answer]); });
+  var text = buildSummaryText('Adjuis Client Questionnaire', fields);
+  return { text:text, filename:'adjuis-client-questionnaire.txt', email:p.email };
+}
+document.getElementById('qDownloadBtn').addEventListener('click', function(){
+  var s = questionnaireSummary(); if(s.text) downloadSummaryText(s.filename, s.text);
+});
+document.getElementById('qEmailBtn').addEventListener('click', function(){
+  var s = questionnaireSummary();
+  emailSummaryCopy(s.email, 'Your Adjuis Client Questionnaire', s.text, document.getElementById('qCopyMsg'));
+});
+</script>
