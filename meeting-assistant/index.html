@@ -1541,6 +1541,15 @@ function beginSelectedSession(){
   STEPS = buildSessionSteps(currentSession);
   answersByIndex = {};
   answersByKey = {};
+  // Added 2026-11-02, seventh pass: mindMapValues is keyed by session
+  // NAME ("General Meeting"), not by individual meeting, so logging a
+  // second General Meeting for this same client in the same browser tab
+  // used to just reopen the first one's map and submit that same
+  // content again. Clearing it here, every time a meeting starts (even
+  // a repeat of the same session type), means each meeting always
+  // starts from a blank map -- same as the very first time that session
+  // type is ever used.
+  delete mindMapValues[currentSession];
   document.getElementById('maIntro').style.display = 'none';
   document.getElementById('maWizard').style.display = '';
   document.getElementById('pageTitle').textContent = currentSession;
