@@ -1,0 +1,1755 @@
+<title>Adjuis / Client Meeting Assistant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{
+    --ink:#141413;
+    --fill:#3a3a3a;
+    --fill-hover:#525252;
+    --paper:#ffffff;
+    --panel:#f0f0ef;
+    --panel-line:rgba(20,20,19,.12);
+    --accent:#f3a7c6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:120px;
+  }
+  button,a,input,textarea,select{font-family:inherit;}
+  button{cursor:pointer;}
+
+  header{ padding:26px 40px 10px; }
+  .mark-row{ display:flex; align-items:center; gap:12px; margin:0 0 22px; }
+  .mark-link{ display:inline-block; }
+  .mark{ display:block; height:16px; width:auto; }
+  .mark path{ fill:var(--ink); }
+  .mark-label{
+    display:none; font:inherit; font-size:11.5px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.06em; color:rgba(20,20,19,.45); background:none; border:none; padding:0;
+    cursor:pointer;
+  }
+  .mark-label:hover{ color:var(--ink); text-decoration:underline; }
+  .mark-label.is-visible{ display:inline-block; margin-left:auto; }
+  h1{ font-size:clamp(22px,3vw,28px); margin:0 0 8px; letter-spacing:-.01em; }
+  .page-client-sub{ display:none; font-size:13px; color:rgba(20,20,19,.5); margin:-2px 0 8px; }
+  .page-client-sub.is-visible{ display:block; }
+
+  main{ max-width:760px; margin:0 auto; padding:10px 40px 0; transition:max-width .2s ease; }
+  main.is-wizard-active{ max-width:1080px; }
+
+  .client-block{ background:var(--panel); border-radius:14px; padding:22px 24px; margin:26px 0 24px; }
+  .client-block h2{ font-size:14px; text-transform:uppercase; letter-spacing:.08em; margin:0 0 16px; }
+  .field-row{ display:flex; flex-wrap:wrap; gap:12px; }
+  .field{ flex:1 1 220px; display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; font-weight:700; color:rgba(20,20,19,.6); }
+  .field input, .field select{
+    border:1px solid var(--panel-line); background:#fff;
+    border-radius:8px; padding:11px 13px; font-size:14px;
+  }
+  .field .req{ color:#b4482f; }
+  /* Red pin line around a required field left empty when Begin is
+     clicked -- added 2026-11-02. Cleared as soon as the person starts
+     typing in it. */
+  .field input.is-invalid{ border-color:#b4482f; }
+
+  /* Client history lookup -- added 2026-11-02. Appears automatically
+     once both name and email are filled in, pulling whatever this
+     client already has on file (past Questionnaire/Meeting Assistant
+     sessions, from their own tab on the Google Sheet) so Corey doesn't
+     have to flip over to the Sheet before a call. Each past session is
+     a collapsed row, expandable to its full Q&A. Silently stays hidden
+     if the client is new, if SUBMIT_ENDPOINT isn't set, or if the
+     lookup fails for any reason -- never blocks starting the meeting. */
+  .client-history{ background:var(--panel); border-radius:14px; padding:18px 24px; margin:0 0 24px; }
+  .client-history-title{ font-size:13px; font-weight:700; margin:0 0 10px; }
+  .client-history-sessions{ display:flex; flex-direction:column; gap:6px; }
+  .client-history-row{ border:1px solid var(--panel-line); border-radius:10px; background:#fff; overflow:hidden; }
+  .client-history-row-head{
+    display:flex; align-items:center; justify-content:space-between; width:100%;
+    text-align:left; font:inherit; font-size:13px; font-weight:600;
+    padding:10px 14px; background:none; border:none;
+  }
+  .client-history-row-head::after{ content:'+'; font-weight:400; color:rgba(20,20,19,.4); }
+  .client-history-row-head.is-open::after{ content:'\2212'; }
+  .client-history-row-body{ padding:0 14px 14px; }
+  .client-history-q{ font-size:12px; font-weight:700; color:rgba(20,20,19,.55); margin:10px 0 2px; }
+  .client-history-a{ font-size:13.5px; line-height:1.5; margin:0; white-space:pre-wrap; }
+
+  .session-picker{ margin:0 0 30px; }
+  .session-picker h2{ font-size:14px; font-weight:700; margin:0 0 12px; }
+  .session-list{ display:flex; flex-direction:column; gap:10px; }
+  .session-row{ display:flex; align-items:stretch; gap:10px; }
+  .session-card{
+    display:block; flex:1 1 auto; min-width:0; text-align:left;
+    border:1px solid var(--panel-line); background:#fff; border-radius:12px;
+    padding:14px 18px;
+  }
+  .session-card-name{ font-size:14px; font-weight:700; margin:0 0 4px; }
+  .session-card-desc{ font-size:12.5px; line-height:1.5; color:rgba(20,20,19,.55); margin:0; }
+  .session-card.is-selected{ border-color:var(--ink); background:var(--panel); }
+  .session-card.is-selected .session-card-desc{ color:rgba(20,20,19,.65); }
+  /* Begin button that appears to the right of a session card on hover --
+     added 2026-11-02, so starting a session doesn't need a scroll down to
+     the Begin button at the bottom of the page. */
+  .session-begin-inline{
+    display:flex; align-items:center; justify-content:center;
+    flex:0 0 auto; align-self:stretch; white-space:nowrap;
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:0 28px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+    opacity:0; pointer-events:none; transition:opacity .15s ease;
+  }
+  .session-row:hover .session-begin-inline,
+  .session-begin-inline:focus,
+  .session-row.is-selected-row .session-begin-inline{ opacity:1; pointer-events:auto; }
+  @media (max-width:640px){
+    /* No hover on touch -- keep it reachable instead of permanently hidden. */
+    .session-begin-inline{ opacity:1; pointer-events:auto; padding:0 20px; }
+  }
+
+  .start-row{ margin:0 0 40px; }
+  .start-msg{ font-size:13px; margin-top:10px; color:#b4482f; min-height:18px; }
+
+  /* ---------- One-question-at-a-time wizard (same engine/shape as the
+     Client Questionnaire page) ---------- */
+  /* Mind map always sits below the questions now (desktop and mobile
+     alike), giving the question column the full width -- changed
+     2026-11-02, was a side-by-side grid on desktop. */
+  .wizard-layout{ display:flex; flex-direction:column; gap:36px; }
+  .wizard-side-heading{
+    font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    color:rgba(20,20,19,.5); margin:0 0 10px;
+  }
+  .wizard-side{ position:static; }
+  .wizard-progress{ margin:0 0 22px; }
+  .wizard-pills-wrap{ display:flex; align-items:center; gap:8px; margin:0 0 8px; }
+  /* Fixed (not min) height, sized for two lines -- fixed 2026-11-02 so a
+     long question wrapping onto an extra line no longer pushes the
+     question box below up and down when a different pill is hovered. */
+  .wizard-pill-hover-label{ font-size:12.5px; color:rgba(20,20,19,.55); text-align:left; line-height:1.4; height:35px; overflow:hidden; }
+  .wizard-pills{
+    display:flex; gap:8px; overflow-x:auto; scroll-behavior:smooth; padding:2px; scrollbar-width:none;
+  }
+  .wizard-pills::-webkit-scrollbar{ display:none; }
+  .wizard-pill{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--panel-line);
+    background:#fff; color:var(--ink); font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wizard-pill:hover{ border-color:var(--ink); }
+  .wizard-pill.is-answered{ border-color:var(--ink); }
+  .wizard-pill.is-current{ background:var(--fill); color:#fff; border-color:var(--fill); }
+  .wizard-pill-arrow{
+    flex:0 0 auto; width:26px; height:26px; border-radius:50%; border:1px solid var(--panel-line);
+    background:#fff; color:var(--ink); font-size:14px; display:flex; align-items:center; justify-content:center;
+  }
+  .wizard-pill-arrow:hover{ border-color:var(--ink); }
+  .wizard-step{ min-height:220px; margin:0 0 20px; }
+  .wizard-question{ font-size:18px; font-weight:700; line-height:1.4; margin:0 0 18px; max-width:600px; }
+  .wizard-step textarea{
+    width:100%; min-height:120px; resize:vertical;
+    border:1px solid var(--panel-line); background:var(--panel);
+    border-radius:10px; padding:14px 16px; font-size:15px; line-height:1.55;
+  }
+  .wizard-step textarea:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+  .choice-row{ display:flex; flex-wrap:wrap; gap:10px; }
+  .choice-chip{
+    border:1px solid var(--panel-line); background:#fff; color:var(--ink);
+    border-radius:999px; padding:12px 22px; font-size:14px; font-weight:600;
+  }
+  .choice-chip:hover{ border-color:var(--ink); }
+  .choice-chip.is-selected{ background:var(--fill); color:#fff; border-color:var(--fill); }
+  .wizard-step-hint{ font-size:12.5px; color:rgba(20,20,19,.5); margin:8px 0 0; }
+  .wizard-date-input{
+    border:1px solid var(--panel-line); background:var(--panel); color:var(--ink);
+    border-radius:8px; padding:11px 13px; font-size:14px; max-width:240px;
+  }
+  .wizard-date-input:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+  .wizard-short-input{
+    display:block; width:100%; max-width:420px;
+    border:1px solid var(--panel-line); background:var(--panel); color:var(--ink);
+    border-radius:8px; padding:11px 13px; font-size:14px; margin:0 0 10px;
+  }
+  .wizard-short-input:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+  .date-range-row{ display:flex; gap:20px; flex-wrap:wrap; }
+  .date-range-row > div{ display:flex; flex-direction:column; gap:6px; }
+  .date-range-duration{ font-size:13px; color:rgba(20,20,19,.6); margin:10px 0 0; }
+  .red-flags-wrap{ max-width:420px; }
+  .poc-entry{ padding:14px 0; border-bottom:1px solid var(--panel-line); margin:0 0 14px; }
+  .poc-entry:last-of-type{ border-bottom:none; margin-bottom:0; }
+  .poc-best-way{ margin:0 0 4px; }
+
+  .link-list-row{ display:flex; gap:10px; align-items:center; margin:0 0 10px; max-width:560px; }
+  .link-list-input{
+    flex:1 1 auto; border:1px solid var(--panel-line); background:var(--panel); color:var(--ink);
+    border-radius:8px; padding:11px 13px; font-size:14px;
+  }
+  .link-list-input:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+  .link-list-remove{
+    flex:0 0 auto; width:32px; height:32px; border-radius:50%; border:1px solid var(--panel-line);
+    background:#fff; color:var(--ink); font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center;
+  }
+  .link-list-remove:hover{ border-color:#b4482f; color:#b4482f; }
+
+  .mindmap-widget{ margin-top:4px; }
+  .mindmap-toolbar{ display:flex; flex-wrap:wrap; gap:10px; margin:0 0 10px; }
+  .mindmap-input{
+    flex:1 1 220px; border:1px solid var(--panel-line); background:var(--panel); color:var(--ink);
+    border-radius:8px; padding:11px 13px; font-size:14px;
+  }
+  .mindmap-input:focus{ outline:2px solid var(--ink); outline-offset:1px; }
+  .mindmap-hint{ margin:0 0 4px; }
+  .mindmap-selected-tag{ font-weight:700; color:rgba(20,20,19,.7); margin:0 0 10px; }
+  .mindmap-canvas{
+    position:relative; width:100%; height:360px; min-height:220px; border:1px solid var(--panel-line);
+    border-radius:12px; background:var(--panel); overflow:hidden; touch-action:none;
+    resize:vertical;
+  }
+  .mindmap-svg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .mindmap-line{ stroke:rgba(20,20,19,.3); stroke-width:.6; vector-effect:non-scaling-stroke; }
+  .mindmap-node{
+    position:absolute; transform:translate(-50%,-50%);
+    background:#fff; border:1.5px solid var(--panel-line); border-radius:999px;
+    padding:9px 16px; font-size:13px; font-weight:700; color:var(--ink);
+    max-width:160px; text-align:center; cursor:grab; user-select:none;
+    box-shadow:0 1px 3px rgba(20,20,19,.08);
+  }
+  .mindmap-node.is-root{ background:var(--fill); color:#fff; border-color:var(--fill); }
+  .mindmap-node.is-selected{ outline:2px solid var(--ink); outline-offset:2px; }
+  .mindmap-node.is-editing{
+    cursor:text; -webkit-user-select:text; user-select:text;
+    outline:2px solid var(--ink); outline-offset:2px;
+  }
+
+  .wizard-nav{ display:flex; align-items:center; gap:14px; }
+  .wizard-btn{ font:inherit; border-radius:9px; padding:13px 28px; font-size:12px; letter-spacing:.1em; text-transform:uppercase; }
+  .wizard-btn.is-primary{ background:var(--fill); color:#fff; border:none; }
+  .wizard-btn.is-secondary{ background:none; border:1px solid var(--panel-line); color:var(--ink); }
+  .wizard-btn.is-secondary:disabled{ opacity:.35; cursor:default; }
+  .wizard-skip{ background:none; border:none; font-size:12.5px; color:rgba(20,20,19,.5); text-decoration:underline; margin-left:auto; }
+
+  .submit-cta{
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:14px 34px; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  }
+  .submit-msg{ font-size:13px; margin-top:12px; min-height:18px; }
+  .submit-msg.is-bad{ color:#b4482f; }
+
+  .submit-success{ display:none; }
+  .submit-success-check{ color:#2f7d4f; font-weight:700; font-size:15px; margin:0 0 10px; }
+  .submit-success-copy{ font-size:13.5px; line-height:1.65; color:rgba(20,20,19,.75); margin:0 0 20px; max-width:420px; }
+
+  .copy-actions{ display:flex; flex-wrap:wrap; gap:10px; margin:0 0 16px; }
+  .copy-actions-btn{
+    font:inherit; font-size:13px; font-weight:700; padding:10px 16px; border-radius:999px;
+    border:1px solid var(--panel-line); background:#fff; color:var(--ink); cursor:pointer;
+  }
+  .copy-actions-btn:hover{ border-color:var(--ink); }
+  .copy-actions-msg{ font-size:12.5px; margin:0 0 4px; min-height:1em; color:rgba(20,20,19,.65); }
+  .copy-actions-msg.is-ok{ color:#2f7d4f; }
+  .copy-actions-msg.is-bad{ color:#b4482f; }
+
+  @media (max-width:640px){
+    header{ padding:22px 20px 6px; }
+    main{ padding:10px 20px 0; }
+    .client-block{ padding:18px; }
+    .wizard-question{ font-size:16.5px; }
+    .mindmap-canvas{ height:300px; }
+  }
+
+  /* ---------- Gate (Landing) -- same cloud-video opener as the Pricing
+     tool, just with this page's own title/copy. Sits on top of
+     everything (fixed, full-bleed) until "Begin" is clicked, then
+     hides to reveal the page underneath, which has been there the
+     whole time. */
+  #pageGate{ position:fixed; inset:0; z-index:999; display:flex; align-items:center; justify-content:center; }
+  #pageGate.is-hidden{ display:none; }
+  #gateVideo{ position:fixed; inset:0; z-index:0; width:100vw; height:100vh; object-fit:cover; background:#2a1f33; }
+  .gate-inner{
+    position:relative; z-index:1;
+    text-align:center; padding:0 24px; color:#fff;
+    opacity:0; animation:gateIn 1s ease .1s forwards;
+  }
+  @keyframes gateIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .gate-mark{ width:clamp(130px,16vw,180px); display:block; margin:0 auto 28px; }
+  .gate-mark path{ fill:#fff; }
+  .gate-title{ margin:0 0 18px; font-size:clamp(22px,3vw,30px); letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+  .gate-copy{ max-width:520px; margin:0 auto; font-size:15px; line-height:1.6; color:rgba(255,255,255,.88); }
+  .gate-cta{
+    margin-top:36px; display:inline-block; font:inherit;
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:13px 34px; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    transition:background .2s ease, transform .2s ease;
+  }
+  .gate-cta:hover{ background:var(--fill-hover); transform:translateY(-1px); }
+</style>
+
+<section id="pageGate">
+  <video id="gateVideo" muted loop playsinline autoplay></video>
+  <div class="gate-inner">
+    <svg class="gate-mark" viewBox="0 0 383.52 120.52" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 41.828125 52.769531 L 49.777344 32.105469 L 57.722656 52.769531 Z M 63.613281 4.921875 L 36.410156 4.921875 L 0.523438 87.015625 L 28.664062 87.015625 L 34.171875 72.710938 L 65.382812 72.710938 L 70.890625 87.015625 L 99.5 87.015625 L 63.613281 4.921875"/>
+      <path d="M 140.390625 61.859375 C 139.453125 63.773438 138.199219 65.199219 136.636719 66.136719 C 135.070312 67.078125 133.3125 67.546875 131.359375 67.546875 C 129.40625 67.546875 127.648438 67.078125 126.082031 66.136719 C 124.519531 65.199219 123.269531 63.773438 122.332031 61.859375 C 121.394531 59.945312 120.921875 57.617188 120.921875 54.878906 C 120.921875 52.066406 121.394531 49.742188 122.332031 47.902344 C 123.269531 46.066406 124.519531 44.679688 126.082031 43.742188 C 127.648438 42.800781 129.40625 42.332031 131.359375 42.332031 C 133.3125 42.332031 135.070312 42.800781 136.636719 43.742188 C 138.199219 44.679688 139.453125 46.066406 140.390625 47.902344 C 141.328125 49.742188 141.796875 52.066406 141.796875 54.878906 C 141.796875 57.617188 141.328125 59.945312 140.390625 61.859375 Z M 141.328125 0 L 141.328125 27.246094 C 140.5625 26.511719 139.742188 25.851562 138.863281 25.269531 C 135.269531 22.886719 130.65625 21.695312 125.027344 21.695312 C 119.476562 21.695312 114.335938 23.023438 109.605469 25.679688 C 104.875 28.339844 101.105469 32.152344 98.292969 37.113281 C 95.476562 42.082031 94.070312 48.003906 94.070312 54.878906 C 94.070312 61.761719 95.476562 67.683594 98.292969 72.648438 C 101.105469 77.613281 104.875 81.441406 109.605469 84.140625 C 114.335938 86.835938 119.476562 88.183594 125.027344 88.183594 C 130.96875 88.183594 135.71875 87.011719 139.277344 84.667969 C 140.511719 83.851562 141.617188 82.875 142.617188 81.75 L 142.617188 87.011719 L 167.832031 87.011719 L 167.832031 0 L 141.328125 0"/>
+      <path d="M 175.570312 0 L 175.570312 18.429688 L 202.074219 0 Z"/>
+      <path d="M 175.570312 41.296875 L 175.570312 92.601562 C 175.570312 95.179688 175.042969 97.058594 173.988281 98.230469 C 172.933594 99.402344 171.621094 99.988281 170.058594 99.988281 C 167.949219 99.988281 165.957031 99.480469 164.082031 98.464844 L 157.746094 116.875 C 159.78125 117.890625 162.222656 118.671875 165.078125 119.222656 C 167.929688 119.765625 170.917969 120.042969 174.046875 120.042969 C 182.878906 120.042969 189.761719 117.578125 194.6875 112.652344 C 199.609375 107.730469 202.074219 101.121094 202.074219 92.835938 L 202.074219 22.867188 L 175.570312 41.296875"/>
+      <path d="M 279.214844 22.859375 L 279.214844 87.015625 L 254.003906 87.015625 L 254.003906 81.035156 C 252.628906 82.445312 251.078125 83.636719 249.378906 84.613281 C 245.1875 86.996094 240.671875 88.1875 235.832031 88.1875 C 230.757812 88.1875 226.152344 87.140625 222.050781 85.082031 C 217.949219 83.003906 214.71875 79.753906 212.386719 75.347656 C 210.039062 70.921875 208.867188 65.230469 208.867188 58.277344 L 208.867188 22.859375 L 235.363281 22.859375 L 235.363281 53.707031 C 235.363281 58.242188 236.101562 61.402344 237.585938 63.207031 C 239.082031 64.996094 241.109375 65.898438 243.6875 65.898438 C 245.261719 65.898438 246.722656 65.484375 248.097656 64.671875 C 249.453125 63.859375 250.570312 62.488281 251.4375 60.570312 C 252.285156 58.65625 252.71875 56.128906 252.71875 53.003906 L 252.71875 22.859375 L 279.214844 22.859375"/>
+      <path d="M 286.640625 87.011719 L 286.640625 22.867188 L 313.144531 22.867188 L 313.144531 87.011719 L 286.640625 87.011719"/>
+      <path d="M 349.335938 88.183594 C 343.863281 88.183594 338.46875 87.597656 333.152344 86.425781 C 327.835938 85.253906 323.539062 83.730469 320.253906 81.851562 L 327.523438 64.378906 C 330.574219 66.179688 334.109375 67.585938 338.136719 68.601562 C 342.164062 69.617188 346.089844 70.125 349.921875 70.125 C 353.128906 70.125 355.296875 69.851562 356.429688 69.304688 C 357.5625 68.757812 358.132812 68.015625 358.132812 67.078125 C 358.132812 66.140625 357.464844 65.457031 356.136719 65.023438 C 354.808594 64.59375 353.046875 64.261719 350.863281 64.027344 C 348.671875 63.792969 346.265625 63.5 343.648438 63.148438 C 341.03125 62.796875 338.390625 62.269531 335.734375 61.566406 C 333.074219 60.859375 330.652344 59.804688 328.464844 58.398438 C 326.273438 56.992188 324.515625 55.097656 323.1875 52.710938 C 321.855469 50.328125 321.191406 47.296875 321.191406 43.621094 C 321.191406 39.558594 322.421875 35.882812 324.886719 32.601562 C 327.347656 29.316406 331.023438 26.679688 335.910156 24.683594 C 340.792969 22.691406 346.832031 21.695312 354.027344 21.695312 C 358.71875 21.695312 363.40625 22.125 368.097656 22.984375 C 372.789062 23.84375 376.816406 25.175781 380.175781 26.972656 L 372.90625 44.445312 C 369.621094 42.648438 366.398438 41.414062 363.230469 40.75 C 360.066406 40.085938 357.113281 39.753906 354.378906 39.753906 C 351.015625 39.753906 348.730469 40.066406 347.519531 40.691406 C 346.304688 41.316406 345.699219 42.023438 345.699219 42.800781 C 345.699219 43.742188 346.363281 44.445312 347.695312 44.914062 C 349.023438 45.382812 350.78125 45.734375 352.972656 45.96875 C 355.160156 46.203125 357.5625 46.496094 360.183594 46.847656 C 362.800781 47.199219 365.417969 47.746094 368.039062 48.488281 C 370.660156 49.234375 373.0625 50.308594 375.25 51.714844 C 377.4375 53.121094 379.199219 55.019531 380.527344 57.402344 C 381.859375 59.789062 382.523438 62.816406 382.523438 66.488281 C 382.523438 70.320312 381.308594 73.898438 378.886719 77.21875 C 376.464844 80.542969 372.789062 83.199219 367.863281 85.195312 C 362.9375 87.1875 356.761719 88.183594 349.335938 88.183594"/>
+    </svg>
+    <h1 class="gate-title">Client Meeting Assistant</h1>
+    <p class="gate-copy">The questions for whatever we're meeting about next &mdash; a consultation, a kickoff, a moodboard or design review. Pick the right one and walk through it below.</p>
+    <button type="button" class="gate-cta" id="gateBeginBtn">Begin</button>
+  </div>
+</section>
+
+<header>
+  <div class="mark-row">
+  <a class="mark-link" href="/" id="markLink" aria-label="Adjuis home">
+  <svg class="mark" viewBox="0 0 383.52 120.52" xmlns="http://www.w3.org/2000/svg">
+    <path d="M 41.828125 52.769531 L 49.777344 32.105469 L 57.722656 52.769531 Z M 63.613281 4.921875 L 36.410156 4.921875 L 0.523438 87.015625 L 28.664062 87.015625 L 34.171875 72.710938 L 65.382812 72.710938 L 70.890625 87.015625 L 99.5 87.015625 L 63.613281 4.921875"/>
+    <path d="M 140.390625 61.859375 C 139.453125 63.773438 138.199219 65.199219 136.636719 66.136719 C 135.070312 67.078125 133.3125 67.546875 131.359375 67.546875 C 129.40625 67.546875 127.648438 67.078125 126.082031 66.136719 C 124.519531 65.199219 123.269531 63.773438 122.332031 61.859375 C 121.394531 59.945312 120.921875 57.617188 120.921875 54.878906 C 120.921875 52.066406 121.394531 49.742188 122.332031 47.902344 C 123.269531 46.066406 124.519531 44.679688 126.082031 43.742188 C 127.648438 42.800781 129.40625 42.332031 131.359375 42.332031 C 133.3125 42.332031 135.070312 42.800781 136.636719 43.742188 C 138.199219 44.679688 139.453125 46.066406 140.390625 47.902344 C 141.328125 49.742188 141.796875 52.066406 141.796875 54.878906 C 141.796875 57.617188 141.328125 59.945312 140.390625 61.859375 Z M 141.328125 0 L 141.328125 27.246094 C 140.5625 26.511719 139.742188 25.851562 138.863281 25.269531 C 135.269531 22.886719 130.65625 21.695312 125.027344 21.695312 C 119.476562 21.695312 114.335938 23.023438 109.605469 25.679688 C 104.875 28.339844 101.105469 32.152344 98.292969 37.113281 C 95.476562 42.082031 94.070312 48.003906 94.070312 54.878906 C 94.070312 61.761719 95.476562 67.683594 98.292969 72.648438 C 101.105469 77.613281 104.875 81.441406 109.605469 84.140625 C 114.335938 86.835938 119.476562 88.183594 125.027344 88.183594 C 130.96875 88.183594 135.71875 87.011719 139.277344 84.667969 C 140.511719 83.851562 141.617188 82.875 142.617188 81.75 L 142.617188 87.011719 L 167.832031 87.011719 L 167.832031 0 L 141.328125 0"/>
+    <path d="M 175.570312 0 L 175.570312 18.429688 L 202.074219 0 Z"/>
+    <path d="M 175.570312 41.296875 L 175.570312 92.601562 C 175.570312 95.179688 175.042969 97.058594 173.988281 98.230469 C 172.933594 99.402344 171.621094 99.988281 170.058594 99.988281 C 167.949219 99.988281 165.957031 99.480469 164.082031 98.464844 L 157.746094 116.875 C 159.78125 117.890625 162.222656 118.671875 165.078125 119.222656 C 167.929688 119.765625 170.917969 120.042969 174.046875 120.042969 C 182.878906 120.042969 189.761719 117.578125 194.6875 112.652344 C 199.609375 107.730469 202.074219 101.121094 202.074219 92.835938 L 202.074219 22.867188 L 175.570312 41.296875"/>
+    <path d="M 279.214844 22.859375 L 279.214844 87.015625 L 254.003906 87.015625 L 254.003906 81.035156 C 252.628906 82.445312 251.078125 83.636719 249.378906 84.613281 C 245.1875 86.996094 240.671875 88.1875 235.832031 88.1875 C 230.757812 88.1875 226.152344 87.140625 222.050781 85.082031 C 217.949219 83.003906 214.71875 79.753906 212.386719 75.347656 C 210.039062 70.921875 208.867188 65.230469 208.867188 58.277344 L 208.867188 22.859375 L 235.363281 22.859375 L 235.363281 53.707031 C 235.363281 58.242188 236.101562 61.402344 237.585938 63.207031 C 239.082031 64.996094 241.109375 65.898438 243.6875 65.898438 C 245.261719 65.898438 246.722656 65.484375 248.097656 64.671875 C 249.453125 63.859375 250.570312 62.488281 251.4375 60.570312 C 252.285156 58.65625 252.71875 56.128906 252.71875 53.003906 L 252.71875 22.859375 L 279.214844 22.859375"/>
+    <path d="M 286.640625 87.011719 L 286.640625 22.867188 L 313.144531 22.867188 L 313.144531 87.011719 L 286.640625 87.011719"/>
+    <path d="M 349.335938 88.183594 C 343.863281 88.183594 338.46875 87.597656 333.152344 86.425781 C 327.835938 85.253906 323.539062 83.730469 320.253906 81.851562 L 327.523438 64.378906 C 330.574219 66.179688 334.109375 67.585938 338.136719 68.601562 C 342.164062 69.617188 346.089844 70.125 349.921875 70.125 C 353.128906 70.125 355.296875 69.851562 356.429688 69.304688 C 357.5625 68.757812 358.132812 68.015625 358.132812 67.078125 C 358.132812 66.140625 357.464844 65.457031 356.136719 65.023438 C 354.808594 64.59375 353.046875 64.261719 350.863281 64.027344 C 348.671875 63.792969 346.265625 63.5 343.648438 63.148438 C 341.03125 62.796875 338.390625 62.269531 335.734375 61.566406 C 333.074219 60.859375 330.652344 59.804688 328.464844 58.398438 C 326.273438 56.992188 324.515625 55.097656 323.1875 52.710938 C 321.855469 50.328125 321.191406 47.296875 321.191406 43.621094 C 321.191406 39.558594 322.421875 35.882812 324.886719 32.601562 C 327.347656 29.316406 331.023438 26.679688 335.910156 24.683594 C 340.792969 22.691406 346.832031 21.695312 354.027344 21.695312 C 358.71875 21.695312 363.40625 22.125 368.097656 22.984375 C 372.789062 23.84375 376.816406 25.175781 380.175781 26.972656 L 372.90625 44.445312 C 369.621094 42.648438 366.398438 41.414062 363.230469 40.75 C 360.066406 40.085938 357.113281 39.753906 354.378906 39.753906 C 351.015625 39.753906 348.730469 40.066406 347.519531 40.691406 C 346.304688 41.316406 345.699219 42.023438 345.699219 42.800781 C 345.699219 43.742188 346.363281 44.445312 347.695312 44.914062 C 349.023438 45.382812 350.78125 45.734375 352.972656 45.96875 C 355.160156 46.203125 357.5625 46.496094 360.183594 46.847656 C 362.800781 47.199219 365.417969 47.746094 368.039062 48.488281 C 370.660156 49.234375 373.0625 50.308594 375.25 51.714844 C 377.4375 53.121094 379.199219 55.019531 380.527344 57.402344 C 381.859375 59.789062 382.523438 62.816406 382.523438 66.488281 C 382.523438 70.320312 381.308594 73.898438 378.886719 77.21875 C 376.464844 80.542969 372.789062 83.199219 367.863281 85.195312 C 362.9375 87.1875 356.761719 88.183594 349.335938 88.183594"/>
+  </svg>
+  </a>
+  <button type="button" class="mark-label" id="markLabel">Client Meeting Assistant</button>
+  </div>
+  <h1 id="pageTitle">Client Meeting Assistant</h1>
+  <p class="page-client-sub" id="pageClientSub"></p>
+</header>
+
+<main id="pageMain">
+  <div id="maIntro">
+    <div class="client-block">
+      <h2>Client</h2>
+      <div class="field-row">
+        <div class="field"><label>Client name <span class="req">*</span></label><input type="text" id="cName" required></div>
+        <div class="field"><label>Company</label><input type="text" id="cCompany"></div>
+      </div>
+      <div class="field-row" style="margin-top:12px;">
+        <div class="field"><label>Email <span class="req">*</span></label><input type="email" id="cEmail" required></div>
+        <div class="field"><label>Phone</label><input type="tel" id="cPhone"></div>
+      </div>
+    </div>
+
+    <div class="client-history" id="clientHistory" style="display:none;">
+      <p class="client-history-title" id="clientHistoryTitle"></p>
+      <div class="client-history-sessions" id="clientHistorySessions"></div>
+    </div>
+
+    <div class="session-picker">
+      <h2>What's this meeting?</h2>
+      <div class="session-list" id="sessionList"></div>
+    </div>
+
+    <div class="start-row">
+      <button type="button" class="submit-cta" id="maStartBtn">Begin</button>
+      <p class="start-msg" id="maStartMsg"></p>
+    </div>
+  </div>
+
+  <div id="maWizard" style="display:none;">
+    <div class="wizard-layout">
+      <div class="wizard-main">
+        <div class="wizard-progress">
+          <div class="wizard-pills-wrap">
+            <button type="button" class="wizard-pill-arrow" id="wizardPillPrev" aria-label="Scroll questions left">&#8249;</button>
+            <div class="wizard-pills" id="wizardPills"></div>
+            <button type="button" class="wizard-pill-arrow" id="wizardPillNext" aria-label="Scroll questions right">&#8250;</button>
+          </div>
+          <p class="wizard-pill-hover-label" id="wizardPillHoverLabel"></p>
+        </div>
+        <div class="wizard-step" id="wizardStep"></div>
+        <div class="wizard-nav">
+          <button type="button" class="wizard-btn is-secondary" id="wizardBackBtn">Back</button>
+          <button type="button" class="wizard-btn is-primary" id="wizardNextBtn">Next</button>
+          <button type="button" class="wizard-skip" id="wizardSkipBtn">Skip this one</button>
+        </div>
+      </div>
+      <div class="wizard-side" id="wizardSide"></div>
+    </div>
+  </div>
+
+  <div class="submit-success" id="maSubmitSuccess">
+    <p class="submit-success-check">&#10003; Saved</p>
+    <p class="submit-success-copy">This has been added to this client's file.</p>
+    <div class="copy-actions">
+      <button type="button" class="copy-actions-btn" id="maDownloadBtn">Download a copy</button>
+      <button type="button" class="copy-actions-btn" id="maEmailBtn">Email a copy</button>
+    </div>
+    <p class="copy-actions-msg" id="maCopyMsg"></p>
+  </div>
+</main>
+
+<!-- Shared with the Pricing page and Client Questionnaire -- used here
+     just for CATEGORIES, so the Brand Look & Feel Meeting's opening
+     project-type question stays in sync with those same project types.
+     Added 2026-11-02. -->
+<script src="pricing-data.js"></script>
+<script>
+/* Gate (landing) -- same cloud-video opener used on the Pricing tool.
+   Plays the background video and, on "Begin", hides the gate to reveal
+   the page underneath (which has been there all along). */
+(function(){
+  var v = document.getElementById('gateVideo');
+  if(v){
+    v.src = 'https://media.adjuis.com/bg-pink-purple-clouds.mp4';
+    var p = v.play();
+    if(p && p.catch){ p.catch(function(){}); }
+  }
+  var gate = document.getElementById('pageGate');
+  var beginBtn = document.getElementById('gateBeginBtn');
+  if(beginBtn && gate){
+    beginBtn.addEventListener('click', function(){
+      gate.classList.add('is-hidden');
+      if(v){ v.pause(); }
+    });
+  }
+})();
+
+/* Same Apps Script Web App URL as the pricing page and the Client
+   Questionnaire page (see adjuis-estimates-Code.gs). This page POSTs
+   with type:'meetingNote', which that script routes to the client's own
+   tab, never the master Estimates sheet. Left blank, the form still
+   confirms locally but nothing is recorded remotely. */
+var SUBMIT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDV9zfsHs9aYV1C_p4VSwzOyAZStEUWsbNp0bEdsDN6B2d0E3PrywNQbvkhnilg7cVAQ/exec';
+
+/* ---------------------------------------------------------------------- */
+/* One question at a time, added 2026-10-24 -- replaces the old
+   pick-a-session / single-generic-notes-field layout. Consultation Call,
+   Kickoff Call and General Check-in are fixed question lists (with a
+   couple of ITTT branches via showIf, same mechanism as the Client
+   Questionnaire page). Moodboard Review and Design/Concept Review are
+   built on the fly -- see buildRepeaterSteps -- since they repeat once
+   per moodboard/concept: answering a repeater's "Add another?" question
+   SPLICES a fresh set of steps into the live STEPS array right after it,
+   via the same onAdvance hook the wizard engine calls on every Next. */
+function showIfEquals(key, acceptedValues){
+  return function(byKey){
+    if(byKey[key] === undefined) return true;
+    return acceptedValues.indexOf(byKey[key]) !== -1;
+  };
+}
+/* For a step conditional on TWO levels of branching at once (its own
+   decider is itself only reachable through another condition, like
+   "did the target date change?" which only shows after "has anything
+   changed?" = Yes). A plain showIfEquals on just the inner key would
+   stay visible forever once the outer branch resolves "No", since the
+   inner key then never gets set at all. This checks every condition,
+   each defaulting to visible only while that key is still unanswered. */
+function showIfAll(conditions){
+  return function(byKey){
+    return conditions.every(function(c){
+      if(byKey[c.key] === undefined) return true;
+      return c.accepted.indexOf(byKey[c.key]) !== -1;
+    });
+  };
+}
+
+function buildConsultationSteps(){
+  var s = 'Consultation Call';
+  return [
+    { section:s, type:'text', q:"What's the energy of the client like on this call?" },
+    { section:s, type:'text', q:'How do you feel about the project itself, personally?' },
+    { section:s, type:'text', q:'Based on this initial read, does this feel like a good fit between Adjuis and this client?' },
+
+    { section:s, type:'text', q:"What's the budget?" },
+    { section:s, type:'text', q:"What's needed for that budget? What does it need to cover?" },
+    { section:s, type:'select', key:'budgetWiggleRoom', options:['Yes','No'], q:'Is there wiggle room on the budget?' },
+    { section:s, type:'select', key:'budgetRealistic', options:['Yes','No'], q:'Is the budget realistic for the scope being described?' },
+
+    { section:s, type:'dateRange', q:"What's the timeline?" },
+    { section:s, type:'select', key:'timelineRealistic', options:['Yes','No'], q:'Is the timeline realistic on both sides?' },
+
+    { section:s, type:'nameField', fieldLabel:"Decision maker's name", q:"Who's the decision maker?" },
+
+    { section:s, type:'select', key:'fitRedFlag', options:['No red flags','Red flag raised'], q:'Did the questionnaire or this conversation raise any red flags?' },
+    { section:s, type:'redFlags', showIf:showIfEquals('fitRedFlag', ['Red flag raised']), q:'What are the red flags, specifically?' },
+
+    { section:s, type:'text', q:'What would describe success for this project?' },
+
+    { section:s, type:'text', q:"How do they like to collaborate with a creative partner? What's worked well before, and what hasn't?" },
+    { section:s, type:'text', q:'Do they find the creative process itself fun, or is it mostly a means to an end for them?' },
+    { section:s, type:'text', q:"What's some work, in or out of their industry, that they think is great creative? What makes it great to them?" }
+  ];
+}
+
+function buildKickoffSteps(){
+  var s = 'Kickoff Call';
+  return [
+    { section:s, type:'text', q:'Any last questions about the signed timeline or scope before diving in?' },
+    { section:s, type:'pointOfContact', q:"Who's the main point of contact going forward?" },
+
+    { section:s, type:'select', key:'kickoffChanged', options:['Yes','No'], q:'Has anything changed since the Questionnaire was filled out, budget, timeline, decision makers, or scope?' },
+    { section:s, type:'text', showIf:showIfEquals('kickoffChanged', ['Yes']), q:'What changed, specifically?' },
+    { section:s, type:'select', key:'kickoffDateChanged', showIf:showIfEquals('kickoffChanged', ['Yes']), options:['Yes','No'], q:'Did the target date change?' },
+    { section:s, type:'date', dateLabel:'New target date',
+      showIf:showIfAll([{ key:'kickoffChanged', accepted:['Yes'] }, { key:'kickoffDateChanged', accepted:['Yes'] }]),
+      q:'What is the new target date?' },
+
+    // Copied from the Client Questionnaire (q7/q8 stay there too -- see
+    // questionnaire.html) and moved from it (q26/q27, no longer asked
+    // there), per Corey's 2026-10-30 notes, so Corey can revisit them
+    // live once the relationship is underway.
+    { section:s, type:'text', q:'Revisiting the Questionnaire: what are their goals for this project, beyond a great logo or a nice website? Anything changed since they first answered?' },
+    { section:s, type:'text', q:"Revisiting the Questionnaire: if this project is a complete success a year from now, what's changed for the business? Anything changed since they first answered?" },
+    { section:s, type:'text', q:'What is the mission, in their own words, not the version on the website?' },
+    { section:s, type:'text', q:'What would the founders want people to feel, not just think, when they encounter this brand?' },
+
+    { section:s, type:'text', q:'What does the client want to see or hear from Adjuis in the first week to feel confident this is moving?' },
+    { section:s, type:'text', q:"Anything they're nervous about now that the engagement is official?" },
+    { section:s, type:'text', q:'How will we communicate going forward? What\'s the best way?' },
+    { section:s, type:'text', q:'Any logistics left to confirm, meeting cadence, file sharing?' }
+  ];
+}
+
+/* Added 2026-10-31, Corey's own prep research before a meeting, not a
+   client-facing session at all -- link lists for the client's own site,
+   competitors, and Corey's own research, plus a few framing questions
+   and a live mind map Corey can build out and rearrange on the fly. */
+function buildResearchAssistantSteps(){
+  var s = 'Research Assistant';
+  return [
+    { section:s, type:'linkList', q:"Links to the client's own website and any existing brand materials." },
+    { section:s, type:'linkList', q:'Links to competitors worth looking at.' },
+    { section:s, type:'linkList', q:"Links to your own research, anything that speaks to what they've told you." },
+
+    { section:s, type:'text', q:"Who is the customer for this client?" },
+    { section:s, type:'text', q:'What does the customer want?' },
+
+    { section:s, type:'text', q:'Who do you think their competitors actually are?' },
+    { section:s, type:'text', q:"What problem do you think you're solving for them?" },
+
+    { section:s, type:'select', key:'raAligned', options:['Yes','No'], q:'Are you aligned with the client here?' },
+    { section:s, type:'text', showIf:showIfEquals('raAligned', ['No']), q:"Where's the gap?" }
+  ];
+}
+
+function buildGeneralMeetingSteps(){
+  var s = 'General Meeting';
+  return [
+    { section:s, type:'text', q:'How are you feeling about the designs?' },
+    { section:s, type:'text', q:"Let's discuss any concerns." },
+    { section:s, type:'text', q:"Let's discuss what you like." }
+  ];
+}
+
+/* A live follow-up on everything the client already answered on
+   brand-look-feel.html, per Corey's "question should reflect everything
+   from the brand look and feel" note (2026-10-30). Mirrors that page's
+   full question set one-for-one, in the same order, phrased for Corey to
+   walk through on a call rather than as client-facing copy.
+
+   Re-matched to brand-look-feel.html's current question set on
+   2026-11-02, per Corey's "make sure the questions match" request --
+   that page's order had drifted from this list (Customer & Audience,
+   Competitive Landscape and Business Context used to interleave
+   differently here), Q6 changed from "three to five words" to "one
+   sentence" there, this list was still asking the two investment
+   questions that moved out to questionnaire.html on 2026-11-02, and the
+   hidden-gem follow-up detail question was missing entirely. All fixed
+   below. If brand-look-feel.html's own question set changes again
+   later, update this list to match.
+
+   Also opens with a quick project-type confirmation, per Corey's
+   request, using the same CATEGORIES list as the Pricing page and
+   Client Questionnaire (see pricing-data.js) so it's never a separate
+   list to maintain. */
+function buildBrandFeelMeetingSteps(){
+  var s = 'Brand Look & Feel Meeting';
+  return [
+    { section:s, type:'select', key:'brandMeetingProjectType',
+      options:CATEGORIES.map(function(c){ return c.title; }),
+      q:'Just to make sure, what kind of project is this? Branding, Design, Creative Direction, or something else?' },
+
+    { section:s, type:'text', q:"Let's discuss their inspiration references and uploads -- walk through what's there and why it resonates." },
+    { section:s, type:'text', q:'What do they like about those references specifically, now that we\'re talking it through?' },
+    { section:s, type:'text', q:'Is it the style itself they\'re drawn to, or the level of polish, clean and sophisticated versus a little raw and messy?' },
+    { section:s, type:'text', q:"Anything they've seen that they want to avoid, beyond what's already on file?" },
+    { section:s, type:'text', q:"Let's discuss the Brand Emotions Matrix picks -- do they still feel right after talking it through?" },
+    { section:s, type:'text', q:'In one sentence, how would they describe the brand now, after this conversation?' },
+    { section:s, type:'text', q:'What depicts that feeling visually, in more detail than the form captured?' },
+    { section:s, type:'text', q:"Let's discuss typeface direction -- any examples to pull up together?" },
+    { section:s, type:'text', q:"Let's discuss the Brand Voice Matrix picks -- still accurate?" },
+
+    { section:s, type:'text', q:'Who is their target audience, in their own words, in more depth?' },
+    { section:s, type:'text', q:"Let's discuss their customer -- how would they describe them, in their own words?" },
+    { section:s, type:'text', q:"Describe the ideal customer in more detail -- anything the form didn't capture?" },
+    { section:s, type:'text', q:'Who do they currently attract that they do not actually want?' },
+    { section:s, type:'text', q:'How does their customer make money?' },
+    { section:s, type:'text', q:"How does their ideal customer reach them? Where do they see Adjuis's client?" },
+    { section:s, type:'text', q:"Let's dig into the customer's pain point -- what are we really solving for?" },
+    { section:s, type:'text', q:"Let's dig into the company's own pain point -- what are we really solving for?" },
+
+    { section:s, type:'text', q:'Who do they admire among their competitors, and who do they not want to be compared to?' },
+    { section:s, type:'text', q:'Where do they believe they are better than the competition, even if the current brand does not show it yet?' },
+
+    { section:s, type:'text', q:"What's working right now that we should protect and not touch, in more detail?" },
+    { section:s, type:'text', q:"Let's hear the company's background story, in their own words." },
+    { section:s, type:'text', q:'Is there a hidden gem or an easter egg about the company worth working into the branding?' },
+    { section:s, type:'text', q:'If so, what is it, and how might it work its way into the branding?' }
+  ];
+}
+
+/* kind: 'mood' (Moodboard Review) or 'concept' (Design / Concept Review).
+   Builds the first item's questions + its "Add another?" step; picking
+   "Add another" on that step splices a fresh item + a fresh "Add
+   another?" step right after it, so the loop can repeat as many times
+   as the call actually needs before falling through to the fixed
+   overall-approval steps at the end. */
+function buildRepeaterSteps(kind){
+  var sectionName = kind === 'mood' ? 'Moodboard Review' : 'Design / Concept Review';
+  var label = kind === 'mood' ? 'Moodboard' : 'Concept';
+  var letterCode = 65; // 'A' for the first item; bumped before each later one
+
+  function itemSteps(letter){
+    var decisionKey = kind + 'Decision_' + letter;
+    var steps = [
+      { section:sectionName, type:'text', q:"What was the client's reaction to " + label + ' ' + letter + '?',
+        extraField:{ key:kind + 'Name_' + letter, label:label + ' name', placeholder:'e.g. ' + (kind === 'mood' ? 'Warm & Minimal' : 'Bold Type Concept') } }
+    ];
+    if(kind === 'mood'){
+      steps.push({ section:sectionName, type:'select', key:'moodMatches_'+letter, options:['Yes','Partially','No'], q:'Does ' + label + ' ' + letter + ' match the approved Recap Brief?' });
+    } else {
+      steps.push({ section:sectionName, type:'text', q:'What goal or pain point does ' + label + ' ' + letter + ' address?' });
+    }
+    steps.push({ section:sectionName, type:'select', key:decisionKey, options:['Keep','Adjust','Cut'], q:'Keep, Adjust, or Cut ' + label + ' ' + letter + '?' });
+    steps.push({ section:sectionName, type:'text', showIf:showIfEquals(decisionKey, ['Adjust','Cut']), q:'What needs to change about ' + label + ' ' + letter + '?' });
+    return steps;
+  }
+
+  function decisionStep(){
+    return {
+      section:sectionName, type:'select', key:kind+'AddAnother',
+      options:['Add another ' + label.toLowerCase(), "No, that's all"],
+      q:'Add another ' + label.toLowerCase() + '?',
+      onAdvance:function(atIndex, chosenValue){
+        if(chosenValue === 'Add another ' + label.toLowerCase()){
+          letterCode++;
+          var nextLetter = String.fromCharCode(letterCode);
+          var newSteps = itemSteps(nextLetter).concat([decisionStep()]);
+          STEPS.splice.apply(STEPS, [atIndex + 1, 0].concat(newSteps));
+        }
+      }
+    };
+  }
+
+  var steps = itemSteps('A').concat([decisionStep()]);
+  var approvalNoun = kind === 'mood' ? 'moodboard' : 'design';
+  steps.push({ section:sectionName, type:'select', key:kind+'Approved', options:['Yes','Not yet'], q:'Is the ' + approvalNoun + ' direction approved overall?' });
+  steps.push({ section:sectionName, type:'text', q:'Any additional notes on the approval decision?' });
+  return steps;
+}
+
+function buildSessionSteps(session){
+  if(session === 'Consultation Call') return buildConsultationSteps();
+  if(session === 'Kickoff Call') return buildKickoffSteps();
+  if(session === 'Research Assistant') return buildResearchAssistantSteps();
+  if(session === 'Brand Look & Feel Meeting') return buildBrandFeelMeetingSteps();
+  if(session === 'General Meeting') return buildGeneralMeetingSteps();
+  if(session === 'Moodboard Review') return buildRepeaterSteps('mood');
+  if(session === 'Design / Concept Review') return buildRepeaterSteps('concept');
+  return [];
+}
+
+/* ---------------------------------------------------------------------- */
+/* Session picker (intro screen) -- numbered in the sequence Corey
+   actually uses each assistant, per his 2026-10-30 notes, with a
+   one-line description of what each meeting is for. */
+var SESSIONS = [
+  { name:'Consultation Call', desc:"The first call with a new lead, before anything is signed, gauging fit and whether the scope is realistic." },
+  { name:'Kickoff Call', desc:'The first call after signing, setting the plan and the expectations for how the project will run.' },
+  { name:'Research Assistant', desc:"Not a client call -- your own prep. Links, competitors, and where you stand with the client before you meet." },
+  { name:'Brand Look & Feel Meeting', desc:"A live walk-through of the client's Brand Look & Feel answers, before moodboard work starts." },
+  { name:'General Meeting', desc:"A general check-in mid-project, how the client's feeling, any concerns, anything they like." },
+  { name:'Moodboard Review', desc:"Reviewing moodboard concepts with the client and capturing what's working and what's not." },
+  { name:'Design / Concept Review', desc:'Reviewing a round of design concepts and capturing reactions and direction.' }
+];
+var currentSession = null;
+var sessionListEl = document.getElementById('sessionList');
+SESSIONS.forEach(function(s, i){
+  var row = document.createElement('div');
+  row.className = 'session-row';
+
+  var card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'session-card';
+  card.dataset.session = s.name;
+
+  var nameEl = document.createElement('p');
+  nameEl.className = 'session-card-name';
+  nameEl.textContent = (i + 1) + '. ' + s.name;
+
+  var descEl = document.createElement('p');
+  descEl.className = 'session-card-desc';
+  descEl.textContent = s.desc;
+
+  card.appendChild(nameEl);
+  card.appendChild(descEl);
+  function selectThisCard(){
+    currentSession = s.name;
+    sessionListEl.querySelectorAll('.session-card').forEach(function(c){ c.classList.toggle('is-selected', c === card); });
+    sessionListEl.querySelectorAll('.session-row').forEach(function(r){ r.classList.toggle('is-selected-row', r === row); });
+  }
+  card.addEventListener('click', selectThisCard);
+
+  var beginInline = document.createElement('button');
+  beginInline.type = 'button';
+  beginInline.className = 'session-begin-inline';
+  beginInline.textContent = 'Begin';
+  beginInline.setAttribute('aria-label', 'Begin ' + s.name);
+  beginInline.addEventListener('click', function(){
+    selectThisCard();
+    beginSelectedSession();
+  });
+
+  row.appendChild(card);
+  row.appendChild(beginInline);
+  sessionListEl.appendChild(row);
+});
+
+/* ---------------------------------------------------------------------- */
+/* Wizard engine -- same shape as the Client Questionnaire page's, plus an
+   onAdvance hook (used only by the Moodboard/Concept repeater's "Add
+   another?" steps above) that can splice new steps into STEPS right
+   after the step that was just answered, before the engine looks for
+   what comes next. */
+var STEPS = [];
+var answersByIndex = {};
+var answersByKey = {};
+var current = 0;
+
+/* State for the new combined step types added 2026-10-30 (dateRange,
+   redFlags, pointOfContact), each keyed by STEPS index since a session
+   can in principle use more than one. */
+var dateRangeValues = {};
+var redFlagValues = {};
+var contactEntries = {};
+var linkListValues = {};
+
+/* Human-readable length of time between the two dateRange inputs --
+   added 2026-10-31. Shown live below the From/To date boxes once both
+   are filled in. */
+function formatDateRangeDuration(fromVal, toVal){
+  if(!fromVal || !toVal) return '';
+  var from = new Date(fromVal + 'T00:00:00');
+  var to = new Date(toVal + 'T00:00:00');
+  if(isNaN(from.getTime()) || isNaN(to.getTime())) return '';
+  if(to.getTime() === from.getTime()) return 'Same day';
+  if(to < from) return 'End date is before the start date';
+
+  var months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+  var temp = new Date(from.getTime());
+  temp.setMonth(temp.getMonth() + months);
+  if(temp > to){
+    months--;
+    temp = new Date(from.getTime());
+    temp.setMonth(temp.getMonth() + months);
+  }
+  var days = Math.round((to - temp) / 86400000);
+
+  var parts = [];
+  if(months > 0) parts.push(months + (months === 1 ? ' month' : ' months'));
+  if(days > 0 || parts.length === 0) parts.push(days + (days === 1 ? ' day' : ' days'));
+  return parts.join(', ') + ' total';
+}
+var mindMapValues = {};
+
+/* Auto-formats a phone input to (xxx) xxx-xxxx as digits are typed. */
+function formatPhoneAsTyped(el){
+  el.addEventListener('input', function(){
+    var digits = el.value.replace(/\D/g, '').slice(0, 10);
+    var out = digits;
+    if(digits.length > 6) out = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+    else if(digits.length > 3) out = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+    else if(digits.length > 0) out = '(' + digits;
+    el.value = out;
+  });
+}
+
+/* Point of contact -- name/email/phone plus a "best way to reach them"
+   chooser, with a "+ Add another contact" button for a secondary
+   contact when there is one. Built fresh per render (like the other
+   step widgets) but reads/writes contactEntries[idx] so state survives
+   Back/Next. */
+function buildPointOfContactWidget(idx){
+  if(!contactEntries[idx]) contactEntries[idx] = [{ name:'', email:'', phone:'', bestWay:'' }];
+  var outer = document.createElement('div');
+  var entriesHost = document.createElement('div');
+  entriesHost.className = 'poc-entries';
+  outer.appendChild(entriesHost);
+
+  function renderEntries(){
+    entriesHost.innerHTML = '';
+    contactEntries[idx].forEach(function(entry, i){
+      var block = document.createElement('div');
+      block.className = 'poc-entry';
+
+      if(contactEntries[idx].length > 1){
+        var tag = document.createElement('p');
+        tag.className = 'wizard-step-hint';
+        tag.style.margin = '0 0 8px';
+        tag.textContent = 'Contact ' + (i + 1);
+        block.appendChild(tag);
+      }
+
+      var nameIn = document.createElement('input');
+      nameIn.type = 'text'; nameIn.placeholder = 'Name'; nameIn.className = 'wizard-short-input';
+      nameIn.value = entry.name;
+      nameIn.addEventListener('input', function(){ entry.name = nameIn.value; });
+      block.appendChild(nameIn);
+
+      var emailIn = document.createElement('input');
+      emailIn.type = 'email'; emailIn.placeholder = 'Email'; emailIn.className = 'wizard-short-input';
+      emailIn.value = entry.email;
+      emailIn.addEventListener('input', function(){ entry.email = emailIn.value; });
+      block.appendChild(emailIn);
+
+      var phoneIn = document.createElement('input');
+      phoneIn.type = 'tel'; phoneIn.placeholder = 'Phone'; phoneIn.className = 'wizard-short-input';
+      phoneIn.value = entry.phone;
+      formatPhoneAsTyped(phoneIn);
+      phoneIn.addEventListener('input', function(){ entry.phone = phoneIn.value; });
+      block.appendChild(phoneIn);
+
+      var bwLbl = document.createElement('p');
+      bwLbl.className = 'wizard-step-hint';
+      bwLbl.style.margin = '10px 0 6px';
+      bwLbl.textContent = 'Best way to reach them';
+      block.appendChild(bwLbl);
+
+      var bestWayRow = document.createElement('div');
+      bestWayRow.className = 'choice-row poc-best-way';
+      ['Email', 'Phone Call', 'Text', 'Either'].forEach(function(opt){
+        var chip = document.createElement('button');
+        chip.type = 'button'; chip.className = 'choice-chip';
+        chip.textContent = opt;
+        if(entry.bestWay === opt) chip.classList.add('is-selected');
+        chip.addEventListener('click', function(){
+          bestWayRow.querySelectorAll('.choice-chip').forEach(function(c){ c.classList.remove('is-selected'); });
+          chip.classList.add('is-selected');
+          entry.bestWay = opt;
+        });
+        bestWayRow.appendChild(chip);
+      });
+      block.appendChild(bestWayRow);
+
+      entriesHost.appendChild(block);
+    });
+  }
+  renderEntries();
+
+  var addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'copy-actions-btn';
+  addBtn.textContent = '+ Add another contact';
+  addBtn.addEventListener('click', function(){
+    contactEntries[idx].push({ name:'', email:'', phone:'', bestWay:'' });
+    renderEntries();
+  });
+  outer.appendChild(addBtn);
+  return outer;
+}
+function savePointOfContactWidget(idx){
+  var entries = contactEntries[idx] || [];
+  var parts = entries.map(function(e, i){
+    var bits = [];
+    if(e.name) bits.push(e.name);
+    if(e.email) bits.push(e.email);
+    if(e.phone) bits.push(e.phone);
+    if(e.bestWay) bits.push('best way: ' + e.bestWay);
+    if(!bits.length) return '';
+    return (entries.length > 1 ? 'Contact ' + (i + 1) + ': ' : '') + bits.join(', ');
+  }).filter(Boolean);
+  return parts.join(' | ');
+}
+
+/* Link list -- a growable set of URL fields, used for the Research
+   Assistant's three link sections (client site, competitors, Corey's own
+   research). One generic widget, state keyed by STEPS index like the
+   other step widgets above, so each of the three steps gets its own
+   independent list even though they share this same function. */
+function buildLinkListWidget(idx){
+  if(!linkListValues[idx]) linkListValues[idx] = [''];
+  var outer = document.createElement('div');
+  var rowsHost = document.createElement('div');
+  rowsHost.className = 'link-list-rows';
+  outer.appendChild(rowsHost);
+
+  function renderRows(){
+    rowsHost.innerHTML = '';
+    linkListValues[idx].forEach(function(val, i){
+      var row = document.createElement('div');
+      row.className = 'link-list-row';
+
+      var inp = document.createElement('input');
+      inp.type = 'url';
+      inp.className = 'link-list-input';
+      inp.placeholder = 'https://...';
+      inp.value = val;
+      inp.addEventListener('input', function(){ linkListValues[idx][i] = inp.value; });
+      row.appendChild(inp);
+
+      if(linkListValues[idx].length > 1){
+        var rm = document.createElement('button');
+        rm.type = 'button';
+        rm.className = 'link-list-remove';
+        rm.setAttribute('aria-label', 'Remove this link');
+        rm.textContent = '×';
+        rm.addEventListener('click', function(){
+          linkListValues[idx].splice(i, 1);
+          renderRows();
+        });
+        row.appendChild(rm);
+      }
+
+      rowsHost.appendChild(row);
+    });
+  }
+  renderRows();
+
+  var addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'copy-actions-btn';
+  addBtn.textContent = '+ Add another link';
+  addBtn.addEventListener('click', function(){
+    linkListValues[idx].push('');
+    renderRows();
+  });
+  outer.appendChild(addBtn);
+  return outer;
+}
+function saveLinkListWidget(idx){
+  var vals = (linkListValues[idx] || []).map(function(v){ return v.trim(); }).filter(Boolean);
+  return vals.join(' | ');
+}
+
+/* Mind map -- added 2026-10-31, originally a single Research Assistant
+   step, now a persistent side panel for EVERY session type (one map per
+   assistant, keyed by session name rather than by STEPS index -- see
+   renderMindMapSide, built once when a session starts and left alone
+   while the question column underneath it changes). Nodes are stored as
+   {id, label, parentId, x, y} with x/y in percent of the canvas (so the
+   SVG connector overlay, drawn in a 0-100 viewBox with
+   preserveAspectRatio="none", lines up with the percent-positioned node
+   divs with no pixel math). id 0 is the implicit root ("Client") and
+   can't be deleted. Clicking a node selects it as the parent for the
+   next added node; dragging (Pointer Events, so mouse and touch both
+   work) repositions a node in place. Deleting a node cascades to its
+   descendants. The live diagram can't be captured in a spreadsheet cell,
+   so saveMindMapWidget flattens it to an indented text outline instead. */
+var MINDMAP_CHILD_ANGLE_STEP = 47; // a golden-angle-ish spread so siblings don't land on top of each other
+/* The root node's label, added 2026-11-01 -- the company name if one was
+   given, otherwise the client's own name, falling back to the literal
+   word "Client" only if somehow neither was filled in. */
+function getClientLabel(){
+  var company = document.getElementById('cCompany').value.trim();
+  var name = document.getElementById('cName').value.trim();
+  return company || name || 'Client';
+}
+function ensureMindMapState(idx){
+  if(!mindMapValues[idx]){
+    mindMapValues[idx] = { nodes:[{ id:0, label:getClientLabel(), parentId:null, x:50, y:14 }], nextId:1, selectedId:0 };
+  }
+}
+function buildMindMapWidget(idx){
+  ensureMindMapState(idx);
+  var state = mindMapValues[idx];
+
+  var outer = document.createElement('div');
+  outer.className = 'mindmap-widget';
+
+  var toolbar = document.createElement('div');
+  toolbar.className = 'mindmap-toolbar';
+  var labelInput = document.createElement('input');
+  labelInput.type = 'text';
+  labelInput.className = 'mindmap-input';
+  labelInput.placeholder = 'New node label';
+  var addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'copy-actions-btn';
+  addBtn.textContent = '+ Add Node';
+  var removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'copy-actions-btn';
+  removeBtn.textContent = 'Remove Selected';
+  toolbar.appendChild(labelInput);
+  toolbar.appendChild(addBtn);
+  toolbar.appendChild(removeBtn);
+  outer.appendChild(toolbar);
+
+  var hint = document.createElement('p');
+  hint.className = 'wizard-step-hint mindmap-hint';
+  hint.textContent = 'Click a node to select it, then add a node to branch off it. Drag any node to move it.';
+  outer.appendChild(hint);
+
+  var selectedTag = document.createElement('p');
+  selectedTag.className = 'wizard-step-hint mindmap-selected-tag';
+  outer.appendChild(selectedTag);
+
+  var canvasWrap = document.createElement('div');
+  canvasWrap.className = 'mindmap-canvas';
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'mindmap-svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  canvasWrap.appendChild(svg);
+  outer.appendChild(canvasWrap);
+
+  function nodeById(id){ return state.nodes.filter(function(n){ return n.id === id; })[0]; }
+  function childrenOf(id){ return state.nodes.filter(function(n){ return n.parentId === id; }); }
+  function descendantIds(id){
+    var out = [];
+    childrenOf(id).forEach(function(c){ out.push(c.id); out = out.concat(descendantIds(c.id)); });
+    return out;
+  }
+
+  function redrawLines(){
+    svg.innerHTML = '';
+    state.nodes.forEach(function(n){
+      if(n.parentId === null) return;
+      var p = nodeById(n.parentId);
+      if(!p) return;
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', p.x); line.setAttribute('y1', p.y);
+      line.setAttribute('x2', n.x); line.setAttribute('y2', n.y);
+      line.setAttribute('class', 'mindmap-line');
+      svg.appendChild(line);
+    });
+  }
+
+  function updateSelectedTag(){
+    var sel = nodeById(state.selectedId) || nodeById(0);
+    selectedTag.textContent = 'Selected: ' + (sel ? sel.label : 'Client') + (sel && sel.id === 0 ? ' (root)' : '');
+  }
+
+  function renderNodes(){
+    canvasWrap.querySelectorAll('.mindmap-node').forEach(function(el){ el.remove(); });
+    state.nodes.forEach(function(n){
+      var nodeEl = document.createElement('div');
+      nodeEl.className = 'mindmap-node' + (n.id === 0 ? ' is-root' : '') + (state.selectedId === n.id ? ' is-selected' : '');
+      nodeEl.textContent = n.label || '(untitled)';
+      nodeEl.style.left = n.x + '%';
+      nodeEl.style.top = n.y + '%';
+      nodeEl.dataset.nodeId = n.id;
+
+      var dragging = false, moved = false, startX = 0, startY = 0, editing = false;
+      nodeEl.addEventListener('pointerdown', function(ev){
+        if(editing) return; // let a click inside the editable text place the cursor instead of starting a drag
+        dragging = true; moved = false;
+        startX = ev.clientX; startY = ev.clientY;
+        try{ nodeEl.setPointerCapture(ev.pointerId); }catch(e){}
+      });
+      nodeEl.addEventListener('pointermove', function(ev){
+        if(!dragging || editing) return;
+        var dx = ev.clientX - startX, dy = ev.clientY - startY;
+        if(Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+        if(!moved) return;
+        var rect = canvasWrap.getBoundingClientRect();
+        var pctX = ((ev.clientX - rect.left) / rect.width) * 100;
+        var pctY = ((ev.clientY - rect.top) / rect.height) * 100;
+        n.x = Math.max(4, Math.min(96, pctX));
+        n.y = Math.max(4, Math.min(96, pctY));
+        nodeEl.style.left = n.x + '%';
+        nodeEl.style.top = n.y + '%';
+        redrawLines();
+      });
+      nodeEl.addEventListener('pointerup', function(ev){
+        dragging = false;
+        if(editing) return;
+        if(!moved){
+          /* Select in place rather than calling renderNodes() -- rebuilding
+             every node here would swap this element out for a new one mid
+             click, and the browser only fires a native dblclick when both
+             clicks land on the SAME element, so a full re-render here was
+             silently breaking double-click-to-edit. Added 2026-11-02. */
+          state.selectedId = n.id;
+          canvasWrap.querySelectorAll('.mindmap-node').forEach(function(el){ el.classList.remove('is-selected'); });
+          nodeEl.classList.add('is-selected');
+          redrawLines();
+          updateSelectedTag();
+        }
+      });
+
+      /* Double-click to edit a node's copy in place -- added 2026-11-02.
+         Turns the node itself into an editable text field; Enter or
+         clicking away saves it, Escape discards the change. */
+      function finishEditing(save){
+        editing = false;
+        nodeEl.contentEditable = 'false';
+        nodeEl.classList.remove('is-editing');
+        if(save){
+          var newLabel = nodeEl.textContent.replace(/\s+/g, ' ').trim();
+          n.label = newLabel || '(untitled)';
+        }
+        renderNodes();
+        redrawLines();
+        updateSelectedTag();
+      }
+      nodeEl.addEventListener('dblclick', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        dragging = false; moved = false; editing = true;
+        nodeEl.contentEditable = 'true';
+        nodeEl.classList.add('is-editing');
+        nodeEl.focus();
+        var range = document.createRange();
+        range.selectNodeContents(nodeEl);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      });
+      nodeEl.addEventListener('keydown', function(ev){
+        if(!editing) return;
+        if(ev.key === 'Enter'){ ev.preventDefault(); finishEditing(true); }
+        else if(ev.key === 'Escape'){ ev.preventDefault(); nodeEl.textContent = n.label; finishEditing(false); }
+      });
+      nodeEl.addEventListener('blur', function(){
+        if(editing) finishEditing(true);
+      });
+      canvasWrap.appendChild(nodeEl);
+    });
+  }
+
+  addBtn.addEventListener('click', function(){
+    var label = labelInput.value.trim();
+    if(!label) return;
+    var parent = nodeById(state.selectedId) || nodeById(0);
+    var siblingCount = childrenOf(parent.id).length;
+    var angleRad = ((siblingCount * MINDMAP_CHILD_ANGLE_STEP) % 360) * Math.PI / 180;
+    var x = Math.max(6, Math.min(94, parent.x + 20 * Math.cos(angleRad)));
+    var y = Math.max(10, Math.min(94, parent.y + 16 * Math.sin(angleRad) + 6));
+    var id = state.nextId++;
+    state.nodes.push({ id:id, label:label, parentId:parent.id, x:x, y:y });
+    state.selectedId = id;
+    labelInput.value = '';
+    renderNodes();
+    redrawLines();
+    updateSelectedTag();
+  });
+  labelInput.addEventListener('keydown', function(ev){
+    if(ev.key === 'Enter'){ ev.preventDefault(); addBtn.click(); }
+  });
+
+  removeBtn.addEventListener('click', function(){
+    if(state.selectedId === 0) return; // the root can't be removed
+    var toRemove = [state.selectedId].concat(descendantIds(state.selectedId));
+    state.nodes = state.nodes.filter(function(n){ return toRemove.indexOf(n.id) === -1; });
+    state.selectedId = 0;
+    renderNodes();
+    redrawLines();
+    updateSelectedTag();
+  });
+
+  renderNodes();
+  redrawLines();
+  updateSelectedTag();
+  return outer;
+}
+function serializeMindMapNodes(nodes){
+  var byParent = {};
+  nodes.forEach(function(n){
+    var key = n.parentId === null ? 'root' : n.parentId;
+    if(!byParent[key]) byParent[key] = [];
+    byParent[key].push(n);
+  });
+  var root = nodes.filter(function(n){ return n.parentId === null; })[0];
+  if(!root) return '';
+  var lines = [];
+  function walk(node, depth){
+    lines.push(new Array(depth + 1).join('  ') + '- ' + (node.label || '(untitled)'));
+    (byParent[node.id] || []).forEach(function(child){ walk(child, depth + 1); });
+  }
+  walk(root, 0);
+  return lines.join('\n');
+}
+function saveMindMapWidget(idx){
+  var state = mindMapValues[idx];
+  if(!state) return '';
+  return serializeMindMapNodes(state.nodes);
+}
+/* Builds the side mind map panel once, when a session starts (see the
+   maStartBtn handler) -- not on every step render, so dragging/adding
+   nodes isn't disturbed by moving between questions underneath it. */
+function renderMindMapSide(session){
+  ensureMindMapState(session);
+  // Keep the root node's label current with whatever is in the Company/
+  // Client fields right now, even for a session whose map already
+  // existed from an earlier run (those fields could have changed since).
+  var rootNode = mindMapValues[session].nodes.filter(function(n){ return n.id === 0; })[0];
+  if(rootNode) rootNode.label = getClientLabel();
+
+  var host = document.getElementById('wizardSide');
+  host.innerHTML = '';
+  var heading = document.createElement('p');
+  heading.className = 'wizard-side-heading';
+  heading.textContent = session + ' -- Mind Map';
+  host.appendChild(heading);
+  host.appendChild(buildMindMapWidget(session));
+}
+/* A session's mind map only counts as "used" once something has been
+   added beyond the implicit root, so an untouched map doesn't show up
+   as a blank "Mind Map: - Client" line in every submission. */
+function hasMindMapContent(session){
+  var state = mindMapValues[session];
+  return !!(state && state.nodes.length > 1);
+}
+
+function stepIsVisible(step){
+  return !step.showIf || step.showIf(answersByKey) === true;
+}
+function findNext(fromIdx){
+  var i = fromIdx + 1;
+  while(i < STEPS.length && !stepIsVisible(STEPS[i])) i++;
+  return i; // may equal STEPS.length (end of this session's questions)
+}
+function findPrev(fromIdx){
+  var i = fromIdx - 1;
+  while(i >= 0 && !stepIsVisible(STEPS[i])) i--;
+  return i; // may be -1 (back to the intro screen)
+}
+function visibleTotal(){
+  return STEPS.filter(stepIsVisible).length;
+}
+function visiblePosition(idx){
+  var pos = 0;
+  for(var i = 0; i <= idx; i++){ if(stepIsVisible(STEPS[i])) pos++; }
+  return pos;
+}
+
+/* Clickable pill per visible question, replacing the old progress-bar +
+   "Question X of N" counter (added 2026-10-31) -- numbered by visible
+   position, filled in once answered, highlighted on the current one, and
+   free to click to jump straight to any question (this is Corey's own
+   working tool, not a gated client form, so there's no reason to lock
+   ahead). The row scrolls horizontally with the two arrow buttons when
+   it's longer than the available width (also usable with a trackpad/
+   touch swipe directly on the row). */
+function renderPills(idx){
+  var pillsHost = document.getElementById('wizardPills');
+  var hoverLabel = document.getElementById('wizardPillHoverLabel');
+  pillsHost.innerHTML = '';
+  var visIdxs = [];
+  STEPS.forEach(function(st, i){ if(stepIsVisible(st)) visIdxs.push(i); });
+  visIdxs.forEach(function(stepIdx, pos){
+    var pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'wizard-pill' +
+      (stepIdx === idx ? ' is-current' : '') +
+      (answersByIndex[stepIdx] ? ' is-answered' : '');
+    pill.textContent = String(pos + 1);
+    pill.addEventListener('click', function(){
+      if(stepIdx === current) return;
+      saveCurrentStepAnswer();
+      renderStep(stepIdx);
+    });
+    /* Rollover copy, not a native tooltip -- swaps the small left-aligned
+       line below the pills (where the session name used to sit) to show
+       this pill's question while hovering, then reverts to the current
+       question on mouse-out. Added 2026-11-02. */
+    pill.addEventListener('mouseenter', function(){
+      hoverLabel.textContent = STEPS[stepIdx].q;
+    });
+    pill.addEventListener('mouseleave', function(){
+      hoverLabel.textContent = STEPS[current].q;
+    });
+    pillsHost.appendChild(pill);
+  });
+  var currentPos = visIdxs.indexOf(idx);
+  var currentPillEl = pillsHost.children[currentPos];
+  if(currentPillEl) currentPillEl.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+  hoverLabel.textContent = STEPS[idx].q;
+}
+
+function renderStep(idx){
+  current = idx;
+  var step = STEPS[idx];
+  renderPills(idx);
+
+  var host = document.getElementById('wizardStep');
+  host.innerHTML = '';
+  var qEl = document.createElement('p');
+  qEl.className = 'wizard-question';
+  qEl.textContent = step.q;
+  host.appendChild(qEl);
+
+  if(step.type === 'text'){
+    var ta = document.createElement('textarea');
+    ta.id = 'wizardInput';
+    ta.value = answersByIndex[idx] || '';
+    host.appendChild(ta);
+    setTimeout(function(){ ta.focus(); }, 0);
+    /* Optional short named field below the main textarea -- added
+       2026-11-02 for the Moodboard/Concept Review reaction questions,
+       so each one can be named (e.g. "Warm & Minimal"). Generic on the
+       step so any text step can carry one via step.extraField. */
+    if(step.extraField){
+      var efLbl = document.createElement('label');
+      efLbl.className = 'wizard-step-hint';
+      efLbl.style.display = 'block';
+      efLbl.style.margin = '14px 0 6px';
+      efLbl.textContent = step.extraField.label;
+      var efIn = document.createElement('input');
+      efIn.type = 'text';
+      efIn.id = 'wizardExtraField';
+      efIn.className = 'wizard-short-input';
+      efIn.placeholder = step.extraField.placeholder || '';
+      efIn.value = answersByKey[step.extraField.key] || '';
+      host.appendChild(efLbl);
+      host.appendChild(efIn);
+    }
+  } else if(step.type === 'select'){
+    var row = document.createElement('div');
+    row.className = 'choice-row';
+    step.options.forEach(function(opt){
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'choice-chip';
+      chip.textContent = opt;
+      if(answersByIndex[idx] === opt) chip.classList.add('is-selected');
+      chip.addEventListener('click', function(){
+        row.querySelectorAll('.choice-chip').forEach(function(c){ c.classList.remove('is-selected'); });
+        chip.classList.add('is-selected');
+        answersByIndex[idx] = opt;
+        if(step.key) answersByKey[step.key] = opt;
+      });
+      row.appendChild(chip);
+    });
+    host.appendChild(row);
+  } else if(step.type === 'nameField'){
+    var nf = document.createElement('input');
+    nf.type = 'text';
+    nf.id = 'wizardInput';
+    nf.className = 'wizard-short-input';
+    nf.placeholder = step.fieldLabel || 'Name';
+    nf.value = answersByIndex[idx] || '';
+    host.appendChild(nf);
+    setTimeout(function(){ nf.focus(); }, 0);
+  } else if(step.type === 'date'){
+    var dLbl = document.createElement('label');
+    dLbl.className = 'wizard-step-hint';
+    dLbl.style.display = 'block';
+    dLbl.style.margin = '0 0 8px';
+    dLbl.textContent = step.dateLabel || 'Date';
+    host.appendChild(dLbl);
+    var dIn = document.createElement('input');
+    dIn.type = 'date';
+    dIn.id = 'wizardInput';
+    dIn.className = 'wizard-date-input';
+    dIn.value = answersByIndex[idx] || '';
+    host.appendChild(dIn);
+  } else if(step.type === 'dateRange'){
+    var rowWrap = document.createElement('div');
+    rowWrap.className = 'date-range-row';
+
+    var fromWrap = document.createElement('div');
+    var fromLbl = document.createElement('label');
+    fromLbl.className = 'wizard-step-hint';
+    fromLbl.textContent = 'From';
+    var fromIn = document.createElement('input');
+    fromIn.type = 'date';
+    fromIn.id = 'wizardDateFrom';
+    fromIn.className = 'wizard-date-input';
+    fromIn.value = (dateRangeValues[idx] && dateRangeValues[idx].from) || '';
+    fromWrap.appendChild(fromLbl); fromWrap.appendChild(fromIn);
+
+    var toWrap = document.createElement('div');
+    var toLbl = document.createElement('label');
+    toLbl.className = 'wizard-step-hint';
+    toLbl.textContent = 'To';
+    var toIn = document.createElement('input');
+    toIn.type = 'date';
+    toIn.id = 'wizardDateTo';
+    toIn.className = 'wizard-date-input';
+    toIn.value = (dateRangeValues[idx] && dateRangeValues[idx].to) || '';
+    toWrap.appendChild(toLbl); toWrap.appendChild(toIn);
+
+    rowWrap.appendChild(fromWrap);
+    rowWrap.appendChild(toWrap);
+    host.appendChild(rowWrap);
+
+    var durationEl = document.createElement('p');
+    durationEl.className = 'date-range-duration';
+    durationEl.id = 'dateRangeDuration';
+    host.appendChild(durationEl);
+    var updateDateRangeDuration = function(){
+      durationEl.textContent = formatDateRangeDuration(fromIn.value, toIn.value);
+    };
+    fromIn.addEventListener('change', updateDateRangeDuration);
+    toIn.addEventListener('change', updateDateRangeDuration);
+    updateDateRangeDuration();
+  } else if(step.type === 'redFlags'){
+    var rfWrap = document.createElement('div');
+    rfWrap.className = 'red-flags-wrap';
+    [1, 2, 3].forEach(function(n){
+      var lbl = document.createElement('label');
+      lbl.className = 'wizard-step-hint';
+      lbl.style.display = 'block';
+      lbl.style.margin = n === 1 ? '0 0 6px' : '14px 0 6px';
+      lbl.textContent = 'Red flag ' + n + (n === 1 ? '' : ' (optional)');
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.id = 'wizardRedFlag' + n;
+      inp.className = 'wizard-short-input';
+      inp.value = (redFlagValues[idx] && redFlagValues[idx][n - 1]) || '';
+      rfWrap.appendChild(lbl);
+      rfWrap.appendChild(inp);
+    });
+    host.appendChild(rfWrap);
+  } else if(step.type === 'pointOfContact'){
+    host.appendChild(buildPointOfContactWidget(idx));
+  } else if(step.type === 'linkList'){
+    host.appendChild(buildLinkListWidget(idx));
+  }
+
+  // Back is never disabled, even on the first question -- goBack() already
+  // knows to return to the intro screen (and pick a different session)
+  // once there's no earlier question to go to.
+  document.getElementById('wizardBackBtn').disabled = false;
+  var isLast = findNext(idx) >= STEPS.length;
+  document.getElementById('wizardNextBtn').textContent = isLast ? 'Save to Client File' : 'Next';
+  document.getElementById('wizardSkipBtn').style.display = (step.type === 'select') ? 'none' : '';
+}
+
+function saveCurrentStepAnswer(){
+  var step = STEPS[current];
+  if(step.type === 'text'){
+    var ta = document.getElementById('wizardInput');
+    answersByIndex[current] = ta ? ta.value.trim() : '';
+    if(step.extraField){
+      var efIn = document.getElementById('wizardExtraField');
+      answersByKey[step.extraField.key] = efIn ? efIn.value.trim() : '';
+    }
+  } else if(step.type === 'nameField'){
+    var nf = document.getElementById('wizardInput');
+    answersByIndex[current] = nf ? nf.value.trim() : '';
+  } else if(step.type === 'date'){
+    var dIn = document.getElementById('wizardInput');
+    answersByIndex[current] = dIn ? dIn.value : '';
+  } else if(step.type === 'dateRange'){
+    var fromEl = document.getElementById('wizardDateFrom');
+    var toEl = document.getElementById('wizardDateTo');
+    var fromV = fromEl ? fromEl.value : '';
+    var toV = toEl ? toEl.value : '';
+    dateRangeValues[current] = { from:fromV, to:toV };
+    var drParts = [];
+    if(fromV) drParts.push('From ' + fromV);
+    if(toV) drParts.push('To ' + toV);
+    answersByIndex[current] = drParts.join(' — ');
+  } else if(step.type === 'redFlags'){
+    var vals = [1, 2, 3].map(function(n){
+      var el = document.getElementById('wizardRedFlag' + n);
+      return el ? el.value.trim() : '';
+    });
+    redFlagValues[current] = vals;
+    answersByIndex[current] = vals.filter(Boolean).join(' | ');
+  } else if(step.type === 'pointOfContact'){
+    answersByIndex[current] = savePointOfContactWidget(current);
+  } else if(step.type === 'linkList'){
+    answersByIndex[current] = saveLinkListWidget(current);
+  }
+  // 'select' steps already save onto answersByIndex/answersByKey at click time
+}
+
+function goNext(){
+  saveCurrentStepAnswer();
+  var step = STEPS[current];
+  if(step.onAdvance) step.onAdvance(current, answersByIndex[current]);
+  var next = findNext(current);
+  if(next >= STEPS.length){
+    submitMeetingNote();
+    return;
+  }
+  renderStep(next);
+}
+function goBack(){
+  saveCurrentStepAnswer();
+  var prev = findPrev(current);
+  if(prev === -1){
+    leaveWizardToIntro();
+    return;
+  }
+  renderStep(prev);
+}
+/* Shared by the Back button (from the first question) and the logo
+   click handler below -- returns the header to its pre-wizard state. */
+function leaveWizardToIntro(){
+  document.getElementById('maWizard').style.display = 'none';
+  document.getElementById('maIntro').style.display = '';
+  document.getElementById('pageTitle').textContent = 'Client Meeting Assistant';
+  document.getElementById('markLabel').classList.remove('is-visible');
+  document.getElementById('pageClientSub').textContent = '';
+  document.getElementById('pageClientSub').classList.remove('is-visible');
+  document.getElementById('pageMain').classList.remove('is-wizard-active');
+}
+
+document.getElementById('wizardNextBtn').addEventListener('click', goNext);
+document.getElementById('wizardBackBtn').addEventListener('click', goBack);
+document.getElementById('wizardPillPrev').addEventListener('click', function(){
+  document.getElementById('wizardPills').scrollBy({ left:-120, behavior:'smooth' });
+});
+document.getElementById('wizardPillNext').addEventListener('click', function(){
+  document.getElementById('wizardPills').scrollBy({ left:120, behavior:'smooth' });
+});
+document.getElementById('wizardSkipBtn').addEventListener('click', function(){
+  var skipType = STEPS[current].type;
+  if(skipType === 'text' || skipType === 'nameField' || skipType === 'date'){
+    var ta = document.getElementById('wizardInput'); if(ta) ta.value = '';
+    var efIn = document.getElementById('wizardExtraField'); if(efIn) efIn.value = '';
+  } else if(skipType === 'dateRange'){
+    dateRangeValues[current] = { from:'', to:'' };
+    var fromEl = document.getElementById('wizardDateFrom'); if(fromEl) fromEl.value = '';
+    var toEl = document.getElementById('wizardDateTo'); if(toEl) toEl.value = '';
+  } else if(skipType === 'redFlags'){
+    redFlagValues[current] = ['', '', ''];
+    [1, 2, 3].forEach(function(n){ var el = document.getElementById('wizardRedFlag' + n); if(el) el.value = ''; });
+  } else if(skipType === 'pointOfContact'){
+    contactEntries[current] = [{ name:'', email:'', phone:'', bestWay:'' }];
+  } else if(skipType === 'linkList'){
+    linkListValues[current] = [''];
+  }
+  goNext();
+});
+
+/* Shared by the bottom "Begin" button and the inline per-card "Begin"
+   button that appears on hover next to each session card -- added
+   2026-11-02 so starting a session doesn't require scrolling down to
+   the bottom of the page. */
+function beginSelectedSession(){
+  var nameEl = document.getElementById('cName');
+  var emailEl = document.getElementById('cEmail');
+  var name = nameEl.value.trim();
+  var email = emailEl.value.trim();
+  var msg = document.getElementById('maStartMsg');
+  nameEl.classList.toggle('is-invalid', !name);
+  emailEl.classList.toggle('is-invalid', !email);
+  if(!name || !email){
+    msg.textContent = 'Add the client name and email first so this lands on the right client file.';
+    return;
+  }
+  if(!currentSession){
+    msg.textContent = "Pick what this meeting is, above, first.";
+    return;
+  }
+  msg.textContent = '';
+  STEPS = buildSessionSteps(currentSession);
+  answersByIndex = {};
+  answersByKey = {};
+  document.getElementById('maIntro').style.display = 'none';
+  document.getElementById('maWizard').style.display = '';
+  document.getElementById('pageTitle').textContent = currentSession;
+  document.getElementById('markLabel').classList.add('is-visible');
+  document.getElementById('pageClientSub').textContent = 'For ' + getClientLabel();
+  document.getElementById('pageClientSub').classList.add('is-visible');
+  document.getElementById('pageMain').classList.add('is-wizard-active');
+  renderMindMapSide(currentSession);
+  renderStep(findNext(-1));
+}
+document.getElementById('maStartBtn').addEventListener('click', beginSelectedSession);
+document.getElementById('cName').addEventListener('input', function(){
+  if(this.value.trim()) this.classList.remove('is-invalid');
+});
+document.getElementById('cEmail').addEventListener('input', function(){
+  if(this.value.trim()) this.classList.remove('is-invalid');
+});
+
+/* ---------------------------------------------------------------------- */
+/* Client history lookup -- added 2026-11-02, per Corey's request. Fires
+   automatically once both name and email are filled in (on leaving the
+   email field, so it's not re-querying on every keystroke), calling the
+   same Apps Script endpoint everything else here already POSTs to, this
+   time as a GET with action=clientHistory. The script looks the email up
+   in the Client Index read-only -- it never creates a tab for an email
+   it doesn't recognize, so an unknown or mistyped address just comes
+   back empty rather than cluttering the Sheet. See adjuis-estimates-
+   Code.gs's getClientHistoryForEmail() for the other half of this. */
+function renderClientHistory(data){
+  var panel = document.getElementById('clientHistory');
+  var titleEl = document.getElementById('clientHistoryTitle');
+  var sessionsEl = document.getElementById('clientHistorySessions');
+  sessionsEl.innerHTML = '';
+  if(!data || !data.found || !data.sessions || !data.sessions.length){
+    panel.style.display = 'none';
+    return;
+  }
+  titleEl.textContent = data.sessions.length + ' past session' + (data.sessions.length === 1 ? '' : 's') + ' on file';
+  data.sessions.forEach(function(sess){
+    var row = document.createElement('div');
+    row.className = 'client-history-row';
+
+    var head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'client-history-row-head';
+    var dateLabel = '';
+    try {
+      var d = new Date(sess.timestamp);
+      if(!isNaN(d.getTime())) dateLabel = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    } catch(e){}
+    var labelSpan = document.createElement('span');
+    labelSpan.textContent = (sess.session || sess.entryType || 'Session') + (dateLabel ? ' (' + dateLabel + ')' : '');
+    head.appendChild(labelSpan);
+
+    var body = document.createElement('div');
+    body.className = 'client-history-row-body';
+    body.style.display = 'none';
+    (sess.answers || []).forEach(function(qa){
+      if(!qa.answer) return;
+      var qEl = document.createElement('p');
+      qEl.className = 'client-history-q';
+      qEl.textContent = qa.question;
+      var aEl = document.createElement('p');
+      aEl.className = 'client-history-a';
+      aEl.textContent = qa.answer;
+      body.appendChild(qEl);
+      body.appendChild(aEl);
+    });
+
+    head.addEventListener('click', function(){
+      var isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : '';
+      head.classList.toggle('is-open', !isOpen);
+    });
+
+    row.appendChild(head);
+    row.appendChild(body);
+    sessionsEl.appendChild(row);
+  });
+  panel.style.display = '';
+}
+function lookupClientHistory(){
+  var name = document.getElementById('cName').value.trim();
+  var email = document.getElementById('cEmail').value.trim();
+  var panel = document.getElementById('clientHistory');
+  if(!name || !email || !SUBMIT_ENDPOINT){ panel.style.display = 'none'; return; }
+  fetch(SUBMIT_ENDPOINT + '?action=clientHistory&email=' + encodeURIComponent(email))
+    .then(function(r){ return r.json(); })
+    .then(function(data){ renderClientHistory(data); })
+    .catch(function(){ panel.style.display = 'none'; });
+}
+document.getElementById('cEmail').addEventListener('blur', lookupClientHistory);
+
+/* Logo click -- added 2026-10-31, flipped with the mark-label's behavior
+   on 2026-11-02. Mid-wizard, it goes all the way back to the start of the
+   form -- the client name/email + session picker screen; on the intro
+   screen, where there's nowhere further back to go, it just scrolls back
+   up to the top of the page. */
+document.getElementById('markLink').addEventListener('click', function(ev){
+  ev.preventDefault();
+  var inWizard = document.getElementById('maWizard').style.display !== 'none';
+  if(inWizard){
+    saveCurrentStepAnswer();
+    leaveWizardToIntro();
+  } else {
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+});
+
+/* "Client Meeting Assistant" label next to the logo -- added 2026-11-01,
+   flipped with the logo's behavior on 2026-11-02. Only shown (and only
+   clickable) once a session is underway, pinned to the right of the mark
+   row. It jumps back to this session's first question, rather than all
+   the way back to the intro screen (that's the logo's job now). The
+   client/company name moved off this label on 2026-11-02 to sit under
+   the page title instead -- see pageClientSub. */
+document.getElementById('markLabel').addEventListener('click', function(){
+  saveCurrentStepAnswer();
+  renderStep(findNext(-1));
+});
+
+/* ---------------------------------------------------------------------- */
+function buildSummaryText(title, fields){
+  var lines = [title, ''];
+  fields.forEach(function(f){
+    if(f[1] === null || f[1] === undefined || f[1] === '') return;
+    lines.push(f[0] + ': ' + f[1]);
+  });
+  lines.push('', 'Adjuis — the creative house of C Mecca', 'adjuis.com');
+  return lines.join('\n');
+}
+function downloadSummaryText(filename, text){
+  var blob = new Blob([text], { type:'text/plain;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+function emailSummaryCopy(email, subject, text, msgEl){
+  if(!email){ msgEl.textContent = 'Add the client email above first.'; msgEl.className = 'copy-actions-msg is-bad'; return; }
+  if(!SUBMIT_ENDPOINT){ msgEl.textContent = "Email delivery isn't connected in this preview."; msgEl.className = 'copy-actions-msg is-bad'; return; }
+  msgEl.textContent = 'Sending...'; msgEl.className = 'copy-actions-msg';
+  fetch(SUBMIT_ENDPOINT, {
+    method:'POST', mode:'no-cors',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ type:'emailCopy', email: email, subject: subject, body: text, submittedAt: new Date().toISOString() })
+  }).then(function(){ msgEl.textContent = 'Sent — check your inbox in a minute.'; msgEl.className = 'copy-actions-msg is-ok'; })
+    .catch(function(){ msgEl.textContent = 'Something went wrong, try the download instead.'; msgEl.className = 'copy-actions-msg is-bad'; });
+}
+
+var lastSubmission = null;
+
+function submitMeetingNote(){
+  var name = document.getElementById('cName').value.trim();
+  var email = document.getElementById('cEmail').value.trim();
+  var company = document.getElementById('cCompany').value.trim();
+  var phone = document.getElementById('cPhone').value.trim();
+
+  var answers = [];
+  STEPS.forEach(function(step, idx){
+    if(!stepIsVisible(step)) return;
+    var val = answersByIndex[idx];
+    if(val) answers.push({ question: step.q, answer: val });
+    if(step.extraField){
+      var efVal = answersByKey[step.extraField.key];
+      if(efVal) answers.push({ question: step.extraField.label, answer: efVal });
+    }
+  });
+
+  var mindMapText = hasMindMapContent(currentSession) ? saveMindMapWidget(currentSession) : '';
+
+  var payload = { type:'meetingNote', session:currentSession, name:name, email:email, company:company, phone:phone, answers:answers, mindMap:mindMapText, submittedAt:new Date().toISOString() };
+  lastSubmission = payload;
+
+  function done(ok){
+    if(ok){
+      document.getElementById('maWizard').style.display = 'none';
+      document.getElementById('maSubmitSuccess').style.display = 'block';
+    } else {
+      var host = document.getElementById('wizardStep');
+      var err = document.createElement('p');
+      err.className = 'submit-msg is-bad';
+      err.textContent = 'Something went wrong sending that, try Save again in a moment.';
+      host.appendChild(err);
+    }
+  }
+  if(!SUBMIT_ENDPOINT){ done(true); return; }
+  fetch(SUBMIT_ENDPOINT, {
+    method:'POST', mode:'no-cors',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).then(function(){ done(true); }).catch(function(){ done(false); });
+}
+
+function meetingSummary(){
+  if(!lastSubmission) return { text:'', filename:'adjuis-meeting-note.txt', email:'' };
+  var p = lastSubmission;
+  var fields = [['Client', p.name], ['Company', p.company], ['Email', p.email], ['Session', p.session]];
+  p.answers.forEach(function(qa){ fields.push([qa.question, qa.answer]); });
+  if(p.mindMap) fields.push(['Mind Map', p.mindMap]);
+  var text = buildSummaryText('Adjuis Meeting Notes — ' + p.session, fields);
+  return { text:text, filename:'adjuis-meeting-note.txt', email:p.email };
+}
+document.getElementById('maDownloadBtn').addEventListener('click', function(){
+  var s = meetingSummary(); if(s.text) downloadSummaryText(s.filename, s.text);
+});
+document.getElementById('maEmailBtn').addEventListener('click', function(){
+  var s = meetingSummary();
+  emailSummaryCopy(s.email, 'Adjuis Meeting Notes', s.text, document.getElementById('maCopyMsg'));
+});
+</script>
