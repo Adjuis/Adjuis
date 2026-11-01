@@ -755,7 +755,7 @@ function submitQuestionnaire(){
     if(val) answers.push({ question: step.q, answer: val });
   });
 
-  var payload = { type:'questionnaire', name:name, email:email, company:company, phone:phone, answers:answers, submittedAt:new Date().toISOString() };
+  var payload = { type:'questionnaire', session:'Client Questionnaire', name:name, email:email, company:company, phone:phone, answers:answers, submittedAt:new Date().toISOString() };
   lastSubmission = payload;
 
   function done(ok){
