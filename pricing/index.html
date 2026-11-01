@@ -1,0 +1,2415 @@
+<title>Adjuis / Project Estimate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{
+    --ink:#141413;
+    --fill:#3a3a3a;
+    --fill-hover:#525252;
+    --paper:#ffffff;
+    --panel:#f0f0ef;
+    --panel-line:rgba(20,20,19,.12);
+    --accent:#f3a7c6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,a,input{font-family:inherit;}
+  button{cursor:pointer;}
+  .view{ display:none; }
+  .view.is-active{ display:block; }
+
+  /* ---------- Gate (Landing) ---------- */
+  #view-gate{
+    /* above the tool's own sticky header (z-index:20) so its nav never
+       shows through behind the gate video before "Begin" is clicked */
+    position:fixed; inset:0; z-index:25;
+    align-items:center; justify-content:center;
+  }
+  #view-gate.is-active{ display:flex; }
+  #gateVideo{ position:fixed; inset:0; z-index:0; width:100vw; height:100vh; object-fit:cover; background:#2a1f33; }
+  .gate-inner{
+    position:relative; z-index:1;
+    text-align:center; padding:0 24px; color:#fff;
+    opacity:0; animation:gateIn 1s ease .1s forwards;
+  }
+  @keyframes gateIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .gate-mark{ width:clamp(130px,16vw,180px); display:block; margin:0 auto 28px; }
+  .gate-mark path{ fill:#fff; }
+  .gate-title{ margin:0 0 18px; font-size:clamp(22px,3vw,30px); letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+  .gate-copy{ max-width:520px; margin:0 auto; font-size:15px; line-height:1.6; color:rgba(255,255,255,.88); }
+  .gate-cta{
+    margin-top:36px; display:inline-block;
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:13px 34px; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    transition:background .2s ease, transform .2s ease;
+  }
+  .gate-cta:hover{ background:var(--fill-hover); transform:translateY(-1px); }
+
+  /* ---------- Shared chrome for inner tool ---------- */
+  #tool{ min-height:100vh; padding-bottom:40px; }
+  .tool-header{
+    position:sticky; top:0; z-index:20; background:var(--paper);
+    display:flex; align-items:center; flex-wrap:wrap; gap:24px;
+    padding:26px 40px 20px;
+  }
+  .tool-brand{
+    display:flex; align-items:center; gap:8px; white-space:nowrap;
+    background:none; border:none; padding:0; cursor:pointer;
+  }
+  .tool-mark{ display:block; height:16px; width:auto; }
+  .tool-mark path{ fill:var(--ink); transition:opacity .15s ease; }
+  .tool-brand:hover .tool-mark path{ opacity:.65; }
+  /* current category, shown next to the mark only on mobile (see the 640px
+     media query below) -- on desktop the full nav already says it */
+  .tool-brand-label{ display:none; }
+  .tool-nav{
+    display:flex; flex-wrap:wrap; align-items:center; gap:22px; margin-left:auto;
+    font-size:13px; letter-spacing:.01em; color:rgba(20,20,19,.52);
+  }
+  .tool-nav button{
+    background:none; border:none; padding:0; color:inherit; font-size:inherit;
+    border-bottom:2px solid transparent; padding-bottom:3px;
+  }
+  .tool-nav button.is-current{ color:var(--ink); font-weight:700; }
+  /* hover reads as bold without the font-weight change reflowing/shifting the
+     nav row — a text-shadow trace fakes the thicker stroke, no width change */
+  .tool-nav button:hover{ color:var(--ink); text-shadow:0 0 .4px currentColor, 0 0 .4px currentColor; }
+  .tool-nav button:disabled{ color:rgba(20,20,19,.28); cursor:default; }
+  .tool-nav button:disabled:hover{ color:rgba(20,20,19,.28); text-shadow:none; }
+
+  /* running-total cart badge -- sits next to the nav (top right), shows
+     the sum of every category the client has looked at that currently
+     carries a non-zero total (see ADJUIS_CART / window.ADJUIS_visited
+     below). A placeholder spot for now, per Corey -- the real design
+     will live in its own area in the next site redesign. */
+  .cart-badge{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel); border:1px solid var(--panel-line); border-radius:999px;
+    padding:9px 16px; white-space:nowrap; margin-left:12px;
+  }
+  .cart-badge:hover{ border-color:var(--ink); }
+  .cart-badge-label{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:rgba(20,20,19,.5); }
+  .cart-badge-value{ font-size:13px; font-weight:800; color:var(--ink); }
+  .cart-badge.has-items{ background:var(--fill); border-color:var(--fill); }
+  .cart-badge.has-items .cart-badge-label{ color:rgba(255,255,255,.65); }
+  .cart-badge.has-items .cart-badge-value{ color:#fff; }
+
+  /* hamburger: hidden on desktop, shown in its place on mobile (see the
+     640px media query below), where .tool-nav becomes a dropdown panel */
+  .tool-nav-toggle{
+    display:none; background:none; border:none; padding:8px; margin:-8px -8px -8px auto;
+    align-items:center; justify-content:center;
+  }
+  .tool-nav-toggle-bars{ position:relative; width:20px; height:14px; display:block; }
+  .tool-nav-toggle-bars span{
+    position:absolute; left:0; right:0; height:2px; background:var(--ink); border-radius:2px;
+    transition:transform .2s ease, opacity .2s ease;
+  }
+  .tool-nav-toggle-bars span:nth-child(1){ top:0; }
+  .tool-nav-toggle-bars span:nth-child(2){ top:6px; }
+  .tool-nav-toggle-bars span:nth-child(3){ top:12px; }
+  .tool-header.is-nav-open .tool-nav-toggle-bars span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+  .tool-header.is-nav-open .tool-nav-toggle-bars span:nth-child(2){ opacity:0; }
+  .tool-header.is-nav-open .tool-nav-toggle-bars span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+
+  .tool-body{ max-width:1180px; margin:0; padding:52px 40px 0 91px; }
+
+  /* every view with a fixed .total-bar footer needs this -- without
+     reserving room for it, the last calc-block (discount code, Your
+     Investment, Send Estimate) can scroll to sit UNDER that bar and
+     become unclickable. 140px clears it even when Logo Design's
+     totalBreakdown wraps to two lines on a narrower desktop width; the
+     mobile media query below reserves less, since that bar is shorter
+     there. Found 2026-10-21 while Playwright-testing the discount code
+     button, then applied to Design/Art Direction/Creative Direction too
+     once they got their own footer 2026-10-22. */
+  #view-design .tool-body,
+  #view-logo-design .tool-body,
+  #view-art-direction .tool-body,
+  #view-creative-direction .tool-body{ padding-bottom:140px; }
+
+  /* ---------- Start view ---------- */
+  .start-head{ font-size:clamp(26px,3.4vw,34px); font-weight:800; letter-spacing:.01em; margin:0 0 22px; }
+  .start-copy p{ font-size:15px; line-height:1.75; max-width:640px; color:rgba(20,20,19,.86); margin:0 0 20px; }
+  .start-cta{
+    margin-top:14px; display:inline-block;
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:13px 30px; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    transition:background .2s ease;
+  }
+  .start-cta:hover{ background:var(--fill-hover); }
+  .start-foot{ margin-top:56px; font-size:13px; line-height:1.7; color:rgba(20,20,19,.55); max-width:560px; }
+
+  /* ---------- Category grid ---------- */
+  .cat-head{ font-size:clamp(24px,3.2vw,32px); font-weight:800; margin:0 0 8px; }
+  .cat-sub{ font-size:15px; color:rgba(20,20,19,.6); margin:0 0 36px; }
+  /* the grid itself (not just its padding) needs to stretch to the viewport's
+     right edge the same way the nav does, so the 1180px max-width cap that
+     the rest of the tool uses has to come off here, not just get padding */
+  #view-categories .tool-body{ max-width:none; padding-right:91px; }
+  .cat-grid{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:18px;
+    padding-bottom:60px;
+  }
+  @media (max-width:1000px){ .cat-grid{ grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:560px){ .cat-grid{ grid-template-columns:1fr; } }
+  .cat-card{
+    background:var(--panel); border-radius:14px; padding:22px 22px 24px;
+    display:flex; flex-direction:column; aspect-ratio:1/1; position:relative;
+  }
+  .cat-card-title{ font-size:13px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; margin:0 0 8px; }
+  .cat-card-copy{ font-size:13.5px; line-height:1.6; color:rgba(20,20,19,.68); flex:1; margin:0; }
+  .cat-card-cta{
+    margin-top:18px; align-self:flex-start;
+    background:var(--fill); color:#fff; border:none; border-radius:8px;
+    padding:10px 22px; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  }
+  .cat-card.is-soon .cat-card-cta{ background:rgba(20,20,19,.18); color:rgba(20,20,19,.45); cursor:default; }
+  .cat-card-badge{
+    display:block; margin:0 0 10px;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:rgba(20,20,19,.4);
+  }
+
+  /* ---------- Logo Design calculator ---------- */
+  .calc-grid{ display:grid; grid-template-columns:minmax(300px,480px) 1fr; gap:70px; align-items:start; padding-bottom:140px; }
+  @media (max-width:860px){ .calc-grid{ grid-template-columns:1fr; gap:40px; } }
+  /* desktop: the budgeting column (the grid's 1fr track) was capped by
+     tool-body's 1180px max-width, landing far short of the actual right
+     edge on wide screens. Freeing that cap lets the 1fr track stretch all
+     the way out to a ~50px gutter from the real right edge, while the
+     "Logo Design" copy column keeps its own left position exactly as it
+     was (it's a fixed minmax() track, so extra container width only ever
+     goes to the 1fr side). The sticky budget bar mirrors the same change
+     so its input lands on the same right edge once it takes over on scroll. */
+  @media (min-width:861px){
+    #view-logo-design .tool-body{ max-width:none; padding-right:50px; }
+    /* #budgetStickyNav prefix (vs. plain .budget-sticky-inner) so this
+       outranks that rule's own max-width/padding on specificity rather
+       than depending on source order */
+    #budgetStickyNav .budget-sticky-inner{ max-width:none; padding-right:50px; }
+  }
+  .calc-eyebrow{ font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; margin:0 0 20px; color:rgba(20,20,19,.75); }
+  .calc-copy p{ font-size:14.5px; line-height:1.75; color:rgba(20,20,19,.78); margin:0 0 18px; }
+  /* mobile-only short heading that replaces the eyebrow + long intro copy
+     (see the 640px media query below); hidden on desktop, where the full
+     copy still runs */
+  .calc-eyebrow-mobile{ display:none; }
+
+  .calc-block{ margin-bottom:34px; }
+  .calc-block-label{ font-size:14px; font-weight:700; margin:0 0 4px; }
+  .calc-block-sub{ font-size:13px; color:rgba(20,20,19,.55); margin:0 0 14px; }
+  /* question headers (First Round Concepts, Number of Revisions, Color
+     Options, etc.) sized up and darkened per Corey, 2026-10-20 */
+  .calc-block-sub.calc-question{ font-weight:700; font-size:18px; color:var(--ink); margin:0 0 10px; }
+
+  /* budget on/off toggle, next to "Do you have a budget?" */
+  .budget-toggle-row{ display:flex; align-items:center; gap:10px; }
+  .budget-toggle{
+    position:relative; display:inline-flex; align-items:center; flex:none;
+    background:none; border:none; padding:0; cursor:pointer;
+  }
+  .budget-toggle-track{
+    display:block; width:40px; height:22px; border-radius:999px;
+    background:rgba(20,20,19,.2); transition:background .2s ease;
+  }
+  .budget-toggle-thumb{
+    display:block; width:18px; height:18px; margin:2px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .2s ease;
+  }
+  .budget-toggle.is-on .budget-toggle-track{ background:#2f7d4f; }
+  .budget-toggle.is-on .budget-toggle-thumb{ transform:translateX(18px); }
+  .budget-toggle-label{
+    font-size:13px; font-weight:400; text-transform:none; letter-spacing:0;
+    color:rgba(20,20,19,.65);
+  }
+  /* budget off: everything below the toggle fades to a light, inert grey —
+     the fields are also actually disabled, not just dimmed */
+  .budget-controls{ transition:opacity .2s ease; }
+  .budget-controls.is-off{ opacity:.3; pointer-events:none; }
+
+  /* input + Enter button only — nothing else ever shares this row, so the
+     field's width never changes no matter what copy shows up below it */
+  .budget-row{ display:flex; gap:10px; }
+  .budget-input{
+    flex:1; border:1px solid var(--panel-line); background:var(--panel);
+    border-radius:8px; padding:12px 14px; font-size:14px; color:var(--ink);
+  }
+  .budget-input::placeholder{ color:rgba(20,20,19,.4); }
+  .budget-go{
+    background:var(--fill); color:#fff; border:none; border-radius:8px;
+    height:42px; flex:none; padding:0 22px; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    transition:background .15s ease;
+  }
+  .budget-go:hover{ background:var(--ink); }
+  /* dirty = they typed a number but haven't hit Enter yet -- a soft pulse
+     nudges them toward the button without feeling like an alert */
+  @keyframes budgetGoPulse{
+    0%, 100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(47,125,79,.45); }
+    50%{ transform:scale(1.045); box-shadow:0 0 0 6px rgba(47,125,79,0); }
+  }
+  .budget-go.is-dirty{ background:#2f7d4f; animation:budgetGoPulse 1.6s ease-in-out infinite; }
+  .budget-go.is-dirty:hover{ background:#3f9b64; animation-play-state:paused; }
+  .budget-min{ font-size:12px; font-weight:700; color:rgba(20,20,19,.5); margin:0; text-align:left; flex:none; white-space:nowrap; }
+  /* !important: guarantees this always wins regardless of what other
+     classes an element carries, or where those classes happen to sit in
+     this stylesheet -- without it, a later same-specificity rule (like
+     .invest-row's display:flex) can silently out-cascade a plain
+     .is-hidden toggle. Caught 2026-10-21 wiring up #investBrandPackageRow. */
+  .is-hidden{ display:none !important; }
+  .budget-hint{ font-size:12px; margin:8px 0 0; min-height:16px; }
+  .budget-hint.is-ok{ color:#2f7d4f; }
+  .budget-input.is-over{ border-color:#b4482f; box-shadow:0 0 0 1px #b4482f; }
+  /* typed below the $500 minimum: keep what they typed, just flag it red */
+  .budget-input.is-under-min{ border-color:#b4482f; box-shadow:0 0 0 1px #b4482f; color:#b4482f; }
+
+  /* budget bar: a live spent-vs-left graphic that replaces the old "Investment
+     set to $X / over budget" sentence — green fill grows with what's picked,
+     the dark track shows what's left, and it turns red past the budget line */
+  .budget-bar-row{ display:flex; align-items:center; gap:14px; margin-top:10px; }
+  .budget-bar{
+    position:relative; flex:1; min-width:0; height:42px;
+    border-radius:999px; background:#212121; overflow:hidden;
+  }
+  .budget-bar-fill{
+    position:relative; height:100%; width:0%; min-width:84px;
+    background:#0f6826; border-radius:999px 6px 6px 999px;
+    display:flex; align-items:center; padding:0 16px; box-sizing:border-box;
+    transition:width .25s ease, background .2s ease;
+  }
+  .budget-bar-fill.is-over{ background:#b4482f; }
+  /* budget toggle off: freeze the bar, no width/color transition, and the
+     numbers go neutral grey since there's nothing live to report */
+  .budget-bar-fill.is-inactive{ transition:none; background:#6b6b6b; }
+  .budget-bar-spent{ color:#fff; font-size:13px; font-weight:700; white-space:nowrap; }
+  .budget-bar-remaining{
+    position:absolute; top:0; right:16px; height:100%;
+    display:flex; align-items:center;
+    color:#03af30; font-size:13px; font-weight:700; white-space:nowrap;
+  }
+  .budget-bar-remaining.is-over{ color:#fff; }
+  .budget-bar-remaining.is-inactive{ color:rgba(255,255,255,.75); }
+
+  /* number inputs used for budget / page count: no spinner arrows */
+  .budget-input::-webkit-outer-spin-button,
+  .budget-input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .budget-input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
+
+  /* pill redesign, 2026-10-20 (first pass ahead of the full site redesign):
+     bigger card-style pills with a value, a one-line description of what
+     the client gets, and a live running-total price, instead of a plain
+     small label-only button. auto-fill keeps it tidy whether a group has
+     3 options (lockup) or 7 (revisions). */
+  .pill-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px; }
+  .pill{
+    display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+    background:#e5f5ea; color:#1d7a43; border:1px solid transparent; border-radius:10px;
+    width:100%; height:auto; min-height:84px; padding:14px 16px; text-align:left;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .pill-value{ font-size:17px; font-weight:800; line-height:1.15; }
+  .pill-desc{ font-size:12px; font-weight:500; line-height:1.4; opacity:.8; }
+  .pill-price{ font-size:13px; font-weight:700; margin-top:auto; padding-top:4px; }
+  .pill:hover{ background:var(--ink); color:#fff; border-color:transparent; }
+  .pill.is-selected{ background:var(--fill); color:#fff; border-color:transparent; }
+  .pill.is-disabled{
+    background:transparent; border-color:rgba(20,20,19,.2); color:rgba(20,20,19,.32);
+    box-shadow:none;
+  }
+  .pill.is-disabled:hover{ background:var(--fill); color:#fff; border-color:transparent; }
+
+  /* a revision count that's genuinely off the table for this turnaround +
+     logo count (not just "over budget") -- unlike is-disabled, this one
+     can't be clicked at all */
+  .pill.is-capped, .pill.is-capped:hover{
+    background:transparent; border-color:rgba(20,20,19,.12); color:rgba(20,20,19,.22);
+    box-shadow:none; pointer-events:none; cursor:not-allowed;
+  }
+
+  /* the exact-weeks override next to the turnaround pills -- the only
+     remaining "enter a custom number" field once logos/revisions/colors
+     lost theirs (see the capped-pills NOTE above the click handlers) */
+  .pill-extra{ display:none; gap:8px; align-items:center; margin-top:8px; }
+  .pill-extra.is-visible{ display:flex; }
+  .pill-extra-input{
+    width:110px; height:38px; padding:0 14px; box-sizing:border-box;
+    border:1px solid var(--panel-line); border-radius:8px; background:var(--panel);
+    font-size:13px; color:var(--ink);
+  }
+  .pill-extra-input::-webkit-outer-spin-button,
+  .pill-extra-input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .pill-extra-input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
+  .pill-extra-label{ font-size:12px; color:rgba(20,20,19,.55); }
+
+  /* heads-up note: a big scope (logos/revisions/colors) paired with a
+     rushed timeline, shown above "Send this estimate" so it's seen right
+     before submitting */
+  .large-project-note{
+    display:none; background:var(--panel); border:1px solid var(--panel-line);
+    border-left:3px solid var(--ink); border-radius:8px; padding:16px 18px; box-sizing:border-box;
+  }
+  .large-project-note.is-visible{ display:block; }
+  .large-project-copy{ font-size:13px; line-height:1.5; color:var(--ink); margin:0; }
+
+  /* turnaround: the calendar and the weeks-picker are mutually exclusive,
+     swapped by the "do you know the date" toggle */
+  .turnaround-panel{ display:none; margin-top:10px; }
+  .turnaround-panel.is-visible{ display:block; }
+  .turnaround-date{ width:220px; max-width:100%; }
+
+  .disc-row{ display:flex; gap:10px; }
+  .disc-input{
+    flex:1; border:1px solid var(--panel-line); background:var(--panel);
+    border-radius:8px; padding:12px 14px; font-size:13px; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .disc-go{
+    background:transparent; color:var(--ink); border:1px solid var(--ink); border-radius:8px;
+    padding:0 20px; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  }
+  .disc-msg{ font-size:12px; margin:8px 0 0; min-height:16px; }
+  .disc-msg.is-ok{ color:#2f7d4f; }
+  .disc-msg.is-bad{ color:#b4482f; }
+
+  .contact-row{ display:flex; flex-direction:column; gap:10px; max-width:360px; }
+  .contact-input{
+    border:1px solid var(--panel-line); background:var(--panel);
+    border-radius:8px; padding:12px 14px; font-size:14px;
+  }
+  .submit-cta{
+    margin-top:6px; align-self:flex-start;
+    background:var(--fill); color:#fff; border:none; border-radius:9px;
+    padding:13px 30px; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  }
+  .submit-cta:disabled{ background:rgba(20,20,19,.25); }
+  .submit-msg{ font-size:13px; margin-top:12px; min-height:18px; }
+  .submit-msg.is-ok{ color:#2f7d4f; }
+  .submit-msg.is-bad{ color:#b4482f; }
+
+  .invest-card{ background:var(--panel); border-radius:12px; padding:20px 22px; max-width:400px; }
+  .invest-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; font-size:13px; padding:6px 0; color:rgba(20,20,19,.75); }
+  .invest-row b{ font-weight:700; color:var(--ink); text-align:right; }
+  .invest-total{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; font-size:15px; font-weight:800; padding:12px 0 0; margin-top:6px; border-top:1px solid var(--panel-line); }
+  .invest-foot{ font-size:11.5px; line-height:1.6; color:rgba(20,20,19,.5); margin:14px 0 0; }
+
+  .submit-success-check{ color:#2f7d4f; font-weight:700; font-size:14px; margin:0 0 8px; }
+  .submit-success-copy{ font-size:13px; line-height:1.65; color:rgba(20,20,19,.75); margin:0 0 18px; max-width:360px; }
+  .book-call-cta{ display:inline-block; text-decoration:none; }
+
+  /* "Get a copy" row, added 2026-10-24 -- sits under every submit-success
+     panel (and the Questionnaire / Meeting Assistant pages), offering a
+     client-side download and/or an emailed copy of what was just submitted. */
+  .copy-actions{ display:flex; flex-wrap:wrap; gap:10px; margin:0 0 16px; }
+  .copy-actions-btn{
+    font:inherit; font-size:13px; font-weight:700; padding:10px 16px; border-radius:999px;
+    border:1px solid var(--panel-line); background:#fff; color:var(--ink); cursor:pointer;
+  }
+  .copy-actions-btn:hover{ border-color:var(--ink); }
+  .copy-actions-msg{ font-size:12.5px; margin:0 0 14px; min-height:1em; color:rgba(20,20,19,.65); }
+  .copy-actions-msg.is-ok{ color:#2f7d4f; }
+  .copy-actions-msg.is-bad{ color:#b23b3b; }
+
+  /* ---------- Book a call modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:50; background:rgba(20,20,19,.55);
+    display:none; align-items:center; justify-content:center; padding:24px;
+  }
+  .modal-overlay.is-open{ display:flex; }
+  .modal-box{
+    position:relative; background:#fff; border-radius:14px;
+    width:min(760px,100%); height:min(820px,88vh);
+    overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.35);
+  }
+  .modal-box iframe{ width:100%; height:100%; border:none; display:block; }
+  .modal-close{
+    position:absolute; top:10px; right:10px; z-index:2;
+    width:32px; height:32px; border-radius:50%; background:rgba(20,20,19,.08);
+    border:none; font-size:18px; line-height:1; color:var(--ink);
+  }
+  .modal-close:hover{ background:rgba(20,20,19,.16); }
+
+  /* ---------- Secondary sticky budget nav (appears once the main budget block scrolls away) ----------
+     Mirrors .calc-grid's own max-width/padding/gap exactly, so the two slots below land on the same
+     left/right edges as the "Logo Design" copy column and the pill-grid / form column underneath. */
+  .budget-sticky-nav{
+    position:fixed; left:0; right:0; z-index:15;
+    background:var(--paper); border-bottom:1px solid var(--panel-line);
+    padding:16px 0; transform:translateY(-110%); opacity:0;
+    transition:transform .25s ease, opacity .25s ease; pointer-events:none;
+  }
+  .budget-sticky-nav.is-visible{ transform:translateY(0); opacity:1; pointer-events:auto; }
+  .budget-sticky-inner{
+    max-width:1180px; margin:0; padding:0 40px 0 91px;
+    display:grid; grid-template-columns:minmax(300px,480px) 1fr; gap:70px; align-items:center;
+  }
+  @media (max-width:860px){ .budget-sticky-inner{ grid-template-columns:1fr; gap:10px; } }
+  .budget-sticky-left{ font-size:13px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; align-self:center; min-width:0; }
+  .budget-sticky-right{ display:flex; flex-direction:column; gap:8px; width:100%; min-width:0; }
+  /* input + Enter button only, same shape as the main (non-sticky) budget
+     row — no inline label stealing width and nothing else sharing the row —
+     so the field renders exactly as long here as it does before scrolling */
+  .budget-sticky-row{ display:flex; gap:10px; width:100%; min-width:0; }
+  .budget-sticky-input{ flex:1; min-width:0; padding:9px 12px; font-size:13px; }
+  .budget-sticky-nav .budget-go{ flex:none; padding:0 18px; height:36px; }
+  .budget-sticky-hint, .budget-sticky-min{ text-align:left; font-size:11.5px; color:rgba(20,20,19,.55); margin:0; }
+  .budget-sticky-input.is-over{ border-color:#b4482f; box-shadow:0 0 0 1px #b4482f; }
+  .budget-sticky-input.is-under-min{ border-color:#b4482f; box-shadow:0 0 0 1px #b4482f; color:#b4482f; }
+  .budget-bar-row-sticky{ margin-top:8px; gap:10px; }
+  .budget-bar-sticky{ height:32px; }
+  .budget-bar-sticky .budget-bar-spent{ font-size:11.5px; }
+  .budget-bar-sticky .budget-bar-remaining{ right:12px; font-size:11.5px; }
+  .budget-bar-sticky .budget-bar-fill{ padding:0 12px; min-width:64px; }
+
+  .total-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:4;
+    background:var(--ink); color:#fff;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 40px;
+  }
+  .total-bar-label{ font-size:14px; font-weight:700; }
+  .total-bar-sub{ font-size:12px; color:rgba(255,255,255,.55); margin-top:2px; }
+  .total-bar-amount{ text-align:right; background:rgba(255,255,255,.08); padding:12px 22px; border-radius:10px; }
+  .total-bar-value{ font-size:24px; font-weight:800; }
+  .total-bar-note{ font-size:11px; color:rgba(255,255,255,.6); margin-top:2px; }
+  .total-bar-strike{ font-size:13px; color:rgba(255,255,255,.45); text-decoration:line-through; margin-right:8px; }
+
+  .total-bar-breakdown{
+    display:flex; flex-wrap:wrap; gap:22px;
+    font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:rgba(255,255,255,.5);
+  }
+  .total-bar-breakdown b{ color:#fff; font-weight:800; margin-right:4px; }
+
+  .inline-link{
+    background:none; border:none; padding:0; display:inline;
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    color:var(--ink); text-decoration:underline; text-underline-offset:3px;
+    margin-left:10px; white-space:nowrap;
+  }
+  .inline-link:hover{ opacity:.65; }
+
+  /* ---------- Checkout / Review Proposal Estimate ---------- */
+  .checkout-item{ background:var(--panel); border-radius:14px; padding:22px 24px; margin-bottom:18px; }
+  .checkout-item-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; }
+  .checkout-item-head .calc-block-label{ margin:0; }
+  .checkout-remove{ margin-left:0; color:#b4482f; }
+  .checkout-item .invest-card{ background:#fff; }
+  .checkout-item-edit{ margin-left:0; margin-top:12px; }
+
+  @media (max-width:640px){
+    .tool-header{ padding:20px 20px 16px; }
+    .tool-body{ padding:36px 20px 0; }
+    #view-categories .tool-body{ padding-right:20px; }
+    /* mobile .total-bar is shorter (no breakdown row, no note) -- see the
+       desktop padding-bottom rule above */
+    #view-design .tool-body,
+    #view-logo-design .tool-body,
+    #view-art-direction .tool-body,
+    #view-creative-direction .tool-body{ padding-bottom:100px; }
+
+    /* current category next to the mark, in the room the nav links used
+       to take up along the header before they moved into the hamburger --
+       stays hidden (even on mobile) until the page's own heading below
+       has scrolled up behind the sticky header, so the name isn't shown
+       twice at once; see the IntersectionObserver that toggles is-visible */
+    .tool-brand-label{
+      font-size:13px; font-weight:400; letter-spacing:.02em;
+      color:rgba(20,20,19,.55); white-space:nowrap;
+      /* .tool-header has a 24px flex gap meant for the nav items further
+         along the row -- cancel it out here so this label sits right next
+         to the mark instead of 24px away from it */
+      margin-left:-18px;
+      position:relative; top:-1px;
+    }
+    .tool-brand-label.is-visible{ display:inline-block; }
+
+    /* cart badge stays visible on mobile (next to the hamburger), just
+       trimmed to fit a small header row */
+    .cart-badge{ padding:7px 12px; margin-left:auto; gap:5px; }
+    .cart-badge-label{ display:none; }
+
+    /* short mobile-only heading above the budget field, replacing the
+       eyebrow + long intro copy that still runs on desktop. Uses the id
+       selector so it outranks the general ".calc-copy p" rule's own
+       font-size/margin (that rule's class+type specificity otherwise
+       beats a class-only selector here, media query or not) */
+    #calcEyebrowMobile.calc-eyebrow-mobile{
+      display:block; font-size:28px; font-weight:800; letter-spacing:-.01em;
+      margin:0 0 8px; color:var(--ink);
+    }
+    .calc-copy > p:not(.calc-eyebrow-mobile){ display:none; }
+
+    /* question/section headers: bigger, darker, and more room between
+       blocks so the form reads less dense on a small screen. calc-question
+       is the actual question text ("How many logo concepts..."), which
+       otherwise inherits calc-block-sub's 55%-opacity grey -- that's the
+       one that most needed darkening */
+    .calc-block{ margin-bottom:52px; }
+    .calc-block-label{ font-size:16px; text-wrap:balance; }
+    .calc-block-sub.calc-question{ font-size:18px; color:var(--ink); text-wrap:balance; }
+
+    /* nav becomes a hamburger-triggered full-screen panel */
+    .tool-nav-toggle{ display:flex; z-index:21; }
+    .tool-nav{
+      display:none; position:fixed; left:0; right:0; bottom:0; /* top is set inline by JS to clear the header */
+      flex-direction:column; align-items:stretch; justify-content:center; gap:0;
+      background:var(--paper); padding:0 28px; overflow-y:auto; z-index:19;
+    }
+    .tool-header.is-nav-open .tool-nav{ display:flex; }
+    .tool-nav button{
+      padding:20px 0; border-bottom:1px solid var(--panel-line); text-align:left;
+      font-size:22px; font-weight:600; letter-spacing:0;
+    }
+    .tool-nav button:last-child{ border-bottom:none; }
+
+    /* total bar: just the header/sub on the left and the amount on the
+       right, no breakdown pills -- keeps the bar compact on small screens */
+    .total-bar{ padding:14px 20px; align-items:center; gap:12px; }
+    .total-bar-breakdown{ display:none; }
+    .total-bar-amount{ flex:none; text-align:right; padding:10px 16px; }
+    .total-bar-value{ font-size:19px; }
+    .total-bar-label{ font-size:13px; text-wrap:balance; }
+    .total-bar-sub{ font-size:11px; }
+    .total-bar-note{ display:none; }
+    .inline-link{ display:block; margin-left:0; margin-top:6px; }
+
+    /* pill grids on mobile: every pill now carries a value, a description,
+       and a price, so one per row is the only width that reads cleanly at
+       this size -- same reasoning that already applied to the logo-system
+       pieces question before the rest of the redesign caught up to it */
+    .pill-grid{ display:grid; grid-template-columns:1fr; gap:10px; }
+    .pill{ min-height:auto; padding:14px 16px; }
+
+    /* sticky budget nav: drop the "Logo Design" label -- the header above
+       already names the category now -- so this bar sits thinner */
+    .budget-sticky-nav{ padding:10px 0; }
+    .budget-sticky-inner{ padding:0 20px; gap:0; }
+    .budget-sticky-left{ display:none; }
+    .budget-bar-row-sticky{ margin-top:6px; }
+    .modal-box{ width:100%; height:92vh; border-radius:10px; }
+  }
+</style>
+
+<!-- ============ GATE ============ -->
+<section id="view-gate" class="view is-active">
+  <video id="gateVideo" muted loop playsinline autoplay></video>
+  <div class="gate-inner">
+    <svg class="gate-mark" viewBox="0 0 383.52 120.52" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 41.828125 52.769531 L 49.777344 32.105469 L 57.722656 52.769531 Z M 63.613281 4.921875 L 36.410156 4.921875 L 0.523438 87.015625 L 28.664062 87.015625 L 34.171875 72.710938 L 65.382812 72.710938 L 70.890625 87.015625 L 99.5 87.015625 L 63.613281 4.921875"/>
+      <path d="M 140.390625 61.859375 C 139.453125 63.773438 138.199219 65.199219 136.636719 66.136719 C 135.070312 67.078125 133.3125 67.546875 131.359375 67.546875 C 129.40625 67.546875 127.648438 67.078125 126.082031 66.136719 C 124.519531 65.199219 123.269531 63.773438 122.332031 61.859375 C 121.394531 59.945312 120.921875 57.617188 120.921875 54.878906 C 120.921875 52.066406 121.394531 49.742188 122.332031 47.902344 C 123.269531 46.066406 124.519531 44.679688 126.082031 43.742188 C 127.648438 42.800781 129.40625 42.332031 131.359375 42.332031 C 133.3125 42.332031 135.070312 42.800781 136.636719 43.742188 C 138.199219 44.679688 139.453125 46.066406 140.390625 47.902344 C 141.328125 49.742188 141.796875 52.066406 141.796875 54.878906 C 141.796875 57.617188 141.328125 59.945312 140.390625 61.859375 Z M 141.328125 0 L 141.328125 27.246094 C 140.5625 26.511719 139.742188 25.851562 138.863281 25.269531 C 135.269531 22.886719 130.65625 21.695312 125.027344 21.695312 C 119.476562 21.695312 114.335938 23.023438 109.605469 25.679688 C 104.875 28.339844 101.105469 32.152344 98.292969 37.113281 C 95.476562 42.082031 94.070312 48.003906 94.070312 54.878906 C 94.070312 61.761719 95.476562 67.683594 98.292969 72.648438 C 101.105469 77.613281 104.875 81.441406 109.605469 84.140625 C 114.335938 86.835938 119.476562 88.183594 125.027344 88.183594 C 130.96875 88.183594 135.71875 87.011719 139.277344 84.667969 C 140.511719 83.851562 141.617188 82.875 142.617188 81.75 L 142.617188 87.011719 L 167.832031 87.011719 L 167.832031 0 L 141.328125 0"/>
+      <path d="M 175.570312 0 L 175.570312 18.429688 L 202.074219 0 Z"/>
+      <path d="M 175.570312 41.296875 L 175.570312 92.601562 C 175.570312 95.179688 175.042969 97.058594 173.988281 98.230469 C 172.933594 99.402344 171.621094 99.988281 170.058594 99.988281 C 167.949219 99.988281 165.957031 99.480469 164.082031 98.464844 L 157.746094 116.875 C 159.78125 117.890625 162.222656 118.671875 165.078125 119.222656 C 167.929688 119.765625 170.917969 120.042969 174.046875 120.042969 C 182.878906 120.042969 189.761719 117.578125 194.6875 112.652344 C 199.609375 107.730469 202.074219 101.121094 202.074219 92.835938 L 202.074219 22.867188 L 175.570312 41.296875"/>
+      <path d="M 279.214844 22.859375 L 279.214844 87.015625 L 254.003906 87.015625 L 254.003906 81.035156 C 252.628906 82.445312 251.078125 83.636719 249.378906 84.613281 C 245.1875 86.996094 240.671875 88.1875 235.832031 88.1875 C 230.757812 88.1875 226.152344 87.140625 222.050781 85.082031 C 217.949219 83.003906 214.71875 79.753906 212.386719 75.347656 C 210.039062 70.921875 208.867188 65.230469 208.867188 58.277344 L 208.867188 22.859375 L 235.363281 22.859375 L 235.363281 53.707031 C 235.363281 58.242188 236.101562 61.402344 237.585938 63.207031 C 239.082031 64.996094 241.109375 65.898438 243.6875 65.898438 C 245.261719 65.898438 246.722656 65.484375 248.097656 64.671875 C 249.453125 63.859375 250.570312 62.488281 251.4375 60.570312 C 252.285156 58.65625 252.71875 56.128906 252.71875 53.003906 L 252.71875 22.859375 L 279.214844 22.859375"/>
+      <path d="M 286.640625 87.011719 L 286.640625 22.867188 L 313.144531 22.867188 L 313.144531 87.011719 L 286.640625 87.011719"/>
+      <path d="M 349.335938 88.183594 C 343.863281 88.183594 338.46875 87.597656 333.152344 86.425781 C 327.835938 85.253906 323.539062 83.730469 320.253906 81.851562 L 327.523438 64.378906 C 330.574219 66.179688 334.109375 67.585938 338.136719 68.601562 C 342.164062 69.617188 346.089844 70.125 349.921875 70.125 C 353.128906 70.125 355.296875 69.851562 356.429688 69.304688 C 357.5625 68.757812 358.132812 68.015625 358.132812 67.078125 C 358.132812 66.140625 357.464844 65.457031 356.136719 65.023438 C 354.808594 64.59375 353.046875 64.261719 350.863281 64.027344 C 348.671875 63.792969 346.265625 63.5 343.648438 63.148438 C 341.03125 62.796875 338.390625 62.269531 335.734375 61.566406 C 333.074219 60.859375 330.652344 59.804688 328.464844 58.398438 C 326.273438 56.992188 324.515625 55.097656 323.1875 52.710938 C 321.855469 50.328125 321.191406 47.296875 321.191406 43.621094 C 321.191406 39.558594 322.421875 35.882812 324.886719 32.601562 C 327.347656 29.316406 331.023438 26.679688 335.910156 24.683594 C 340.792969 22.691406 346.832031 21.695312 354.027344 21.695312 C 358.71875 21.695312 363.40625 22.125 368.097656 22.984375 C 372.789062 23.84375 376.816406 25.175781 380.175781 26.972656 L 372.90625 44.445312 C 369.621094 42.648438 366.398438 41.414062 363.230469 40.75 C 360.066406 40.085938 357.113281 39.753906 354.378906 39.753906 C 351.015625 39.753906 348.730469 40.066406 347.519531 40.691406 C 346.304688 41.316406 345.699219 42.023438 345.699219 42.800781 C 345.699219 43.742188 346.363281 44.445312 347.695312 44.914062 C 349.023438 45.382812 350.78125 45.734375 352.972656 45.96875 C 355.160156 46.203125 357.5625 46.496094 360.183594 46.847656 C 362.800781 47.199219 365.417969 47.746094 368.039062 48.488281 C 370.660156 49.234375 373.0625 50.308594 375.25 51.714844 C 377.4375 53.121094 379.199219 55.019531 380.527344 57.402344 C 381.859375 59.789062 382.523438 62.816406 382.523438 66.488281 C 382.523438 70.320312 381.308594 73.898438 378.886719 77.21875 C 376.464844 80.542969 372.789062 83.199219 367.863281 85.195312 C 362.9375 87.1875 356.761719 88.183594 349.335938 88.183594"/>
+    </svg>
+    <h1 class="gate-title">Project Estimate</h1>
+    <p class="gate-copy">A quick way to get an approximate cost before anything official. Pick a category, build your estimate, and send it over.</p>
+    <button class="gate-cta" data-go="start">Begin</button>
+  </div>
+</section>
+
+<!-- ============ TOOL (Start / Categories / Logo Design) ============ -->
+<div id="tool">
+  <header class="tool-header" id="toolHeader">
+    <button type="button" class="tool-brand" data-go="start" aria-label="Back to start">
+      <svg class="tool-mark" viewBox="0 0 383.52 120.52" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 41.828125 52.769531 L 49.777344 32.105469 L 57.722656 52.769531 Z M 63.613281 4.921875 L 36.410156 4.921875 L 0.523438 87.015625 L 28.664062 87.015625 L 34.171875 72.710938 L 65.382812 72.710938 L 70.890625 87.015625 L 99.5 87.015625 L 63.613281 4.921875"/>
+        <path d="M 140.390625 61.859375 C 139.453125 63.773438 138.199219 65.199219 136.636719 66.136719 C 135.070312 67.078125 133.3125 67.546875 131.359375 67.546875 C 129.40625 67.546875 127.648438 67.078125 126.082031 66.136719 C 124.519531 65.199219 123.269531 63.773438 122.332031 61.859375 C 121.394531 59.945312 120.921875 57.617188 120.921875 54.878906 C 120.921875 52.066406 121.394531 49.742188 122.332031 47.902344 C 123.269531 46.066406 124.519531 44.679688 126.082031 43.742188 C 127.648438 42.800781 129.40625 42.332031 131.359375 42.332031 C 133.3125 42.332031 135.070312 42.800781 136.636719 43.742188 C 138.199219 44.679688 139.453125 46.066406 140.390625 47.902344 C 141.328125 49.742188 141.796875 52.066406 141.796875 54.878906 C 141.796875 57.617188 141.328125 59.945312 140.390625 61.859375 Z M 141.328125 0 L 141.328125 27.246094 C 140.5625 26.511719 139.742188 25.851562 138.863281 25.269531 C 135.269531 22.886719 130.65625 21.695312 125.027344 21.695312 C 119.476562 21.695312 114.335938 23.023438 109.605469 25.679688 C 104.875 28.339844 101.105469 32.152344 98.292969 37.113281 C 95.476562 42.082031 94.070312 48.003906 94.070312 54.878906 C 94.070312 61.761719 95.476562 67.683594 98.292969 72.648438 C 101.105469 77.613281 104.875 81.441406 109.605469 84.140625 C 114.335938 86.835938 119.476562 88.183594 125.027344 88.183594 C 130.96875 88.183594 135.71875 87.011719 139.277344 84.667969 C 140.511719 83.851562 141.617188 82.875 142.617188 81.75 L 142.617188 87.011719 L 167.832031 87.011719 L 167.832031 0 L 141.328125 0"/>
+        <path d="M 175.570312 0 L 175.570312 18.429688 L 202.074219 0 Z"/>
+        <path d="M 175.570312 41.296875 L 175.570312 92.601562 C 175.570312 95.179688 175.042969 97.058594 173.988281 98.230469 C 172.933594 99.402344 171.621094 99.988281 170.058594 99.988281 C 167.949219 99.988281 165.957031 99.480469 164.082031 98.464844 L 157.746094 116.875 C 159.78125 117.890625 162.222656 118.671875 165.078125 119.222656 C 167.929688 119.765625 170.917969 120.042969 174.046875 120.042969 C 182.878906 120.042969 189.761719 117.578125 194.6875 112.652344 C 199.609375 107.730469 202.074219 101.121094 202.074219 92.835938 L 202.074219 22.867188 L 175.570312 41.296875"/>
+        <path d="M 279.214844 22.859375 L 279.214844 87.015625 L 254.003906 87.015625 L 254.003906 81.035156 C 252.628906 82.445312 251.078125 83.636719 249.378906 84.613281 C 245.1875 86.996094 240.671875 88.1875 235.832031 88.1875 C 230.757812 88.1875 226.152344 87.140625 222.050781 85.082031 C 217.949219 83.003906 214.71875 79.753906 212.386719 75.347656 C 210.039062 70.921875 208.867188 65.230469 208.867188 58.277344 L 208.867188 22.859375 L 235.363281 22.859375 L 235.363281 53.707031 C 235.363281 58.242188 236.101562 61.402344 237.585938 63.207031 C 239.082031 64.996094 241.109375 65.898438 243.6875 65.898438 C 245.261719 65.898438 246.722656 65.484375 248.097656 64.671875 C 249.453125 63.859375 250.570312 62.488281 251.4375 60.570312 C 252.285156 58.65625 252.71875 56.128906 252.71875 53.003906 L 252.71875 22.859375 L 279.214844 22.859375"/>
+        <path d="M 286.640625 87.011719 L 286.640625 22.867188 L 313.144531 22.867188 L 313.144531 87.011719 L 286.640625 87.011719"/>
+        <path d="M 349.335938 88.183594 C 343.863281 88.183594 338.46875 87.597656 333.152344 86.425781 C 327.835938 85.253906 323.539062 83.730469 320.253906 81.851562 L 327.523438 64.378906 C 330.574219 66.179688 334.109375 67.585938 338.136719 68.601562 C 342.164062 69.617188 346.089844 70.125 349.921875 70.125 C 353.128906 70.125 355.296875 69.851562 356.429688 69.304688 C 357.5625 68.757812 358.132812 68.015625 358.132812 67.078125 C 358.132812 66.140625 357.464844 65.457031 356.136719 65.023438 C 354.808594 64.59375 353.046875 64.261719 350.863281 64.027344 C 348.671875 63.792969 346.265625 63.5 343.648438 63.148438 C 341.03125 62.796875 338.390625 62.269531 335.734375 61.566406 C 333.074219 60.859375 330.652344 59.804688 328.464844 58.398438 C 326.273438 56.992188 324.515625 55.097656 323.1875 52.710938 C 321.855469 50.328125 321.191406 47.296875 321.191406 43.621094 C 321.191406 39.558594 322.421875 35.882812 324.886719 32.601562 C 327.347656 29.316406 331.023438 26.679688 335.910156 24.683594 C 340.792969 22.691406 346.832031 21.695312 354.027344 21.695312 C 358.71875 21.695312 363.40625 22.125 368.097656 22.984375 C 372.789062 23.84375 376.816406 25.175781 380.175781 26.972656 L 372.90625 44.445312 C 369.621094 42.648438 366.398438 41.414062 363.230469 40.75 C 360.066406 40.085938 357.113281 39.753906 354.378906 39.753906 C 351.015625 39.753906 348.730469 40.066406 347.519531 40.691406 C 346.304688 41.316406 345.699219 42.023438 345.699219 42.800781 C 345.699219 43.742188 346.363281 44.445312 347.695312 44.914062 C 349.023438 45.382812 350.78125 45.734375 352.972656 45.96875 C 355.160156 46.203125 357.5625 46.496094 360.183594 46.847656 C 362.800781 47.199219 365.417969 47.746094 368.039062 48.488281 C 370.660156 49.234375 373.0625 50.308594 375.25 51.714844 C 377.4375 53.121094 379.199219 55.019531 380.527344 57.402344 C 381.859375 59.789062 382.523438 62.816406 382.523438 66.488281 C 382.523438 70.320312 381.308594 73.898438 378.886719 77.21875 C 376.464844 80.542969 372.789062 83.199219 367.863281 85.195312 C 362.9375 87.1875 356.761719 88.183594 349.335938 88.183594"/>
+      </svg>
+    </button>
+    <span class="tool-brand-label" id="toolBrandLabel"></span>
+    <nav class="tool-nav" id="toolNav">
+      <button data-go="design">Design</button>
+      <button data-go="logo-design">Logo Design</button>
+      <button data-go="branding">Branding</button>
+      <button data-go="categories" data-soon-label="Pitch Deck">Pitch Deck</button>
+      <button data-go="art-direction">Art Direction</button>
+      <button data-go="creative-direction">Creative Direction</button>
+      <button data-go="categories" data-soon-label="Consultation">Consultation</button>
+      <button data-go="categories" data-soon-label="Web Design">Web Design</button>
+    </nav>
+    <button type="button" class="cart-badge" id="cartBadgeBtn" data-go="checkout" aria-label="Review your proposal estimate">
+      <span class="cart-badge-label">Proposal</span>
+      <span class="cart-badge-value" id="cartBadgeValue">$0</span>
+    </button>
+    <button type="button" class="tool-nav-toggle" id="toolNavToggle" aria-label="Menu" aria-expanded="false" aria-controls="toolNav">
+      <span class="tool-nav-toggle-bars"><span></span><span></span><span></span></span>
+    </button>
+  </header>
+
+  <!-- ---- Start ---- -->
+  <section id="view-start" class="view">
+    <div class="tool-body">
+      <h1 class="start-head">Project Estimate</h1>
+      <div class="start-copy">
+        <p>Pick a category, build your own estimate from the options, or give me your budget and I'll suggest a starting point. Add as many categories as you need, then review and send the whole proposal at once.</p>
+      </div>
+      <button class="start-cta" data-go="categories">Begin</button>
+      <p class="start-foot">Send me any ideas you have to improve your experience here.</p>
+    </div>
+  </section>
+
+  <!-- ---- Categories ---- -->
+  <section id="view-categories" class="view">
+    <div class="tool-body">
+      <h1 class="cat-head">Project Estimate</h1>
+      <p class="cat-sub">What kind of project are you looking to begin?</p>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+  </section>
+
+  <!-- ---- Design (quick-turn, flat-rate pieces) ---- -->
+  <section id="view-design" class="view">
+    <div class="tool-body">
+      <div class="calc-grid">
+        <div class="calc-copy">
+          <p class="calc-eyebrow-mobile" id="designEyebrowMobile">Design Estimate</p>
+          <p class="calc-eyebrow">Design</p>
+          <p>Quick-turn pieces at flat rates. Pick what you need below.</p>
+        </div>
+
+        <div class="calc-form">
+          <div class="calc-block">
+            <p class="calc-block-sub calc-question">Pick What You Need</p>
+            <div class="pill-grid" id="grpDesignItems"></div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-label budget-toggle-row">Also booking Logo Design or a Branding Package?
+              <button type="button" class="budget-toggle" id="designBundleToggle" role="switch" aria-checked="false" aria-label="Also booking Logo Design or a Branding Package?">
+                <span class="budget-toggle-track"><span class="budget-toggle-thumb"></span></span>
+              </button>
+              <span class="budget-toggle-label" id="designBundleToggleLabel">No</span>
+            </p>
+            <p class="calc-block-sub">15% off everything above when bundled with Logo Design or a Branding Package.</p>
+          </div>
+
+          <div class="calc-block">
+            <div class="invest-card" id="designInvestCard">
+              <div class="invest-total"><span>Total</span><b id="designTotal">$0.00</b></div>
+            </div>
+          </div>
+
+          <div class="calc-block">
+            <button type="button" class="submit-cta" data-go="checkout">Review Proposal Estimate</button>
+            <p class="calc-block-sub" style="margin-top:10px;">Add this to your proposal, remove anything you don't want, and send it to Adjuis all at once.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- sticky footer, added 2026-10-22 so every calculator page carries
+         the same running total as you scroll, not just Logo Design -->
+    <div class="total-bar">
+      <div>
+        <div class="total-bar-label">Your Current Total Estimated Investment</div>
+        <div class="total-bar-sub">Based off your selections</div>
+      </div>
+      <div class="total-bar-amount">
+        <div><span class="total-bar-value" id="designTotalBar">$0.00</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---- Logo Design calculator ---- -->
+  <section id="view-logo-design" class="view">
+    <div class="budget-sticky-nav" id="budgetStickyNav">
+      <div class="budget-sticky-inner">
+        <div class="budget-sticky-left">Logo Design</div>
+        <div class="budget-sticky-right">
+          <div class="budget-sticky-row">
+            <input class="budget-input budget-sticky-input" id="budgetInputSticky" type="number" min="1155" step="1" value="1155" aria-label="Your Current Budget">
+            <button class="budget-go" id="budgetGoSticky">Enter</button>
+          </div>
+          <div class="budget-bar-row budget-bar-row-sticky">
+            <p class="budget-sticky-min budget-min" id="budgetStickyMinLabel"></p>
+            <div class="budget-bar budget-bar-sticky" id="budgetBarSticky">
+              <div class="budget-bar-fill" id="budgetBarFillSticky">
+                <span class="budget-bar-spent" id="budgetBarSpentSticky"></span>
+              </div>
+              <span class="budget-bar-remaining" id="budgetBarRemainingSticky"></span>
+            </div>
+          </div>
+          <p class="budget-sticky-hint" id="budgetStickyHint"></p>
+        </div>
+      </div>
+    </div>
+    <div class="tool-body">
+      <div class="calc-grid">
+        <div class="calc-copy">
+          <p class="calc-eyebrow-mobile" id="calcEyebrowMobile">Logo Design Estimate</p>
+          <p class="calc-eyebrow" id="calcEyebrow">Logo Design</p>
+          <p>Build your own estimate below, or tell me your budget and I'll suggest a starting point to adjust from.</p>
+        </div>
+
+        <div class="calc-form">
+          <div class="calc-block" id="budgetBlock">
+            <p class="calc-block-label budget-toggle-row">Do you have a budget?
+              <button type="button" class="budget-toggle is-on" id="budgetToggle" role="switch" aria-checked="true" aria-label="Do you have a budget?">
+                <span class="budget-toggle-track"><span class="budget-toggle-thumb"></span></span>
+              </button>
+              <span class="budget-toggle-label" id="budgetToggleLabel">Yes</span>
+            </p>
+            <div class="budget-controls" id="budgetControls">
+              <p class="calc-block-sub">Set a budget and the options below that fit it turn green, you can still pick anything, the price just updates as you go.</p>
+              <div class="budget-row">
+                <input class="budget-input" id="budgetInput" type="number" min="1155" step="1" value="1155">
+                <button class="budget-go" id="budgetGo">Enter</button>
+              </div>
+              <div class="budget-bar-row">
+                <p class="budget-min" id="budgetMinLabel"></p>
+                <div class="budget-bar" id="budgetBar">
+                  <div class="budget-bar-fill" id="budgetBarFill">
+                    <span class="budget-bar-spent" id="budgetBarSpent"></span>
+                  </div>
+                  <span class="budget-bar-remaining" id="budgetBarRemaining"></span>
+                </div>
+              </div>
+              <p class="budget-hint" id="budgetHint"></p>
+            </div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-sub calc-question">First Round Concepts</p>
+            <div class="pill-grid" id="grpOptions"></div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-sub calc-question">How many pieces are in your logo system?</p>
+            <p class="calc-block-sub">Just the primary mark, or does it need a secondary mark and/or a tertiary lockup too?</p>
+            <div class="pill-grid" id="grpLockup"></div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-sub calc-question">Number of Revisions</p>
+            <div class="pill-grid" id="grpRevisions"></div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-sub calc-question">Color Options</p>
+            <div class="pill-grid" id="grpColors"></div>
+          </div>
+
+          <div class="calc-block" id="turnaroundBlock">
+            <p class="calc-block-label budget-toggle-row">Do you know the date needed?
+              <button type="button" class="budget-toggle" id="dateKnownToggle" role="switch" aria-checked="false" aria-label="Do you know the date needed?">
+                <span class="budget-toggle-track"><span class="budget-toggle-thumb"></span></span>
+              </button>
+              <span class="budget-toggle-label" id="dateKnownToggleLabel">No</span>
+            </p>
+            <p class="calc-block-sub">Need it faster than our standard 4-week turnaround? Rush pricing kicks in below that — otherwise there's no upcharge.</p>
+
+            <div class="turnaround-panel" id="dateKnownPanel">
+              <button type="button" class="budget-go" id="turnaroundDateCta">Add Date</button>
+              <div class="budget-row is-hidden" id="turnaroundDateRow">
+                <input type="date" class="budget-input turnaround-date" id="turnaroundDateInput">
+              </div>
+            </div>
+
+            <div class="turnaround-panel is-visible" id="dateUnknownPanel">
+              <p class="calc-block-sub calc-question">What's your turnaround time?</p>
+              <div class="pill-grid" id="grpTurnaround"></div>
+              <div class="pill-extra is-visible">
+                <input class="pill-extra-input" id="turnaroundExtraInput" type="number" min="1" step="1" placeholder="Enter #">
+                <span class="pill-extra-label">weeks</span>
+              </div>
+            </div>
+
+            <p class="budget-hint" id="turnaroundHint"></p>
+          </div>
+
+          <!-- Brand Guidelines page-count question only applies in Branding
+               Package mode now (that's the only place a page count feeds
+               pricing) -- see window.ADJUIS_setBrandPackage's is-hidden
+               toggles below. Plain Logo Design shows just the upsell
+               instead. Restructured 2026-10-21 per Corey: removed the
+               "Add a Brand Guidelines booklet?" standalone question from
+               the plain Logo Design page. -->
+          <div class="calc-block" id="brandGuidelinesBlock">
+            <div id="bgPagesQuestion">
+              <p class="calc-block-label" id="brandGuidelinesLabel">Brand Guidelines booklet</p>
+              <p class="calc-block-sub">How many pages? $110/page — leave at 0 if you don't need one.</p>
+              <div class="budget-row">
+                <input class="budget-input" id="bgPagesInput" type="number" min="0" step="1" value="0">
+              </div>
+            </div>
+            <div id="brandPackageUpsellRow">
+              <p class="calc-block-sub"><button type="button" class="inline-link" data-go="branding" style="margin-left:0; white-space:normal;">Get a full branding package</button></p>
+              <p class="calc-block-sub">Includes a brand guidebook and full visual ID package.</p>
+            </div>
+            <div class="calc-block-sub is-hidden" id="brandPackageIncluded">
+              <b>Also included in your Branding Package:</b> Business Card Design and Flyer Design, plus a 5% discount on the combined total.
+            </div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-label">Have a discount code?</p>
+            <div class="disc-row">
+              <input class="disc-input" id="discInput" type="text" placeholder="Enter code">
+              <button class="disc-go" id="discGo">Apply</button>
+            </div>
+            <p class="disc-msg" id="discMsg"></p>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-label">Your Investment</p>
+            <div class="invest-card" id="investCard">
+              <div class="invest-row"><span id="investLogosLabel">Logo Design</span><b id="investLogos"></b></div>
+              <div class="invest-row"><span>Logo System</span><b id="investLockup"></b></div>
+              <div class="invest-row"><span>Revisions</span><b id="investRevisions"></b></div>
+              <div class="invest-row"><span>Color Options</span><b id="investColors"></b></div>
+              <div class="invest-row"><span>Brand Guidelines Booklet</span><b id="investBooklet"></b></div>
+              <div class="invest-row"><span>Turnaround</span><b id="investTurnaround"></b></div>
+              <div class="invest-row is-hidden" id="investBrandPackageRow"><span>Branding Package</span><b>Business Card + Flyer included, 5% off</b></div>
+              <div class="invest-total"><span>Total</span><b id="investTotal"></b></div>
+              <p class="invest-foot">Billed as a deposit: 50% to begin, 25% due after the 1st round of revisions, and the remaining 25% due before final delivery.</p>
+            </div>
+          </div>
+
+          <div class="calc-block large-project-note" id="largeProjectNote">
+            <p class="large-project-copy">This sounds like a great but large project, in a short time. Please let me review and make sure that we process. We will get back to you ASAP.</p>
+          </div>
+
+          <div class="calc-block">
+            <button type="button" class="submit-cta" data-go="checkout">Review Proposal Estimate</button>
+            <p class="calc-block-sub" style="margin-top:10px;">Add this to your proposal, remove anything you don't want, and send it to Adjuis all at once.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="total-bar">
+      <div>
+        <div class="total-bar-label">Your Current Total Estimated Investment</div>
+        <div class="total-bar-sub" id="totalBarSub">Based off selections</div>
+      </div>
+      <div class="total-bar-breakdown" id="totalBreakdown"></div>
+      <div class="total-bar-amount">
+        <div><span class="total-bar-strike" id="totalStrike" style="display:none;"></span><span class="total-bar-value" id="totalValue">$500.00</span></div>
+        <div class="total-bar-note" id="totalNote">Minimum investment</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---- Art Direction retainer -- added 2026-10-21, see
+       buildRetainerModule() below for both retainer views' shared logic ---- -->
+  <section id="view-art-direction" class="view">
+    <div class="tool-body">
+      <div class="calc-grid">
+        <div class="calc-copy">
+          <p class="calc-eyebrow-mobile" id="adEyebrowMobile">Art Direction Estimate</p>
+          <p class="calc-eyebrow">Art Direction</p>
+          <p>A monthly retainer for ongoing art direction support &mdash; a weekly check-in plus async availability. Longer commitments get a better rate.</p>
+        </div>
+
+        <div class="calc-form">
+          <div class="calc-block">
+            <p class="calc-block-sub calc-question">Commitment Length</p>
+            <div class="pill-grid" id="grpAdTerm"></div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-label">Your Investment</p>
+            <div class="invest-card" id="adInvestCard">
+              <div class="invest-row"><span>Monthly Rate</span><b id="adMonthlyRate"></b></div>
+              <div class="invest-row"><span>Commitment</span><b id="adTermLabel"></b></div>
+              <div class="invest-total"><span>Total Contract Value</span><b id="adTotal"></b></div>
+              <p class="invest-foot">Billed monthly for the length of the term.</p>
+            </div>
+          </div>
+
+          <div class="calc-block">
+            <button type="button" class="submit-cta" data-go="checkout">Review Proposal Estimate</button>
+            <p class="calc-block-sub" style="margin-top:10px;">Add this to your proposal, remove anything you don't want, and send it to Adjuis all at once.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- sticky footer, added 2026-10-22 so every calculator page carries
+         the same running total as you scroll, not just Logo Design -->
+    <div class="total-bar">
+      <div>
+        <div class="total-bar-label">Your Current Total Estimated Investment</div>
+        <div class="total-bar-sub" id="adTotalBarSub">Full contract, across the term</div>
+      </div>
+      <div class="total-bar-amount">
+        <div><span class="total-bar-value" id="adTotalBar">$0.00</span></div>
+        <div class="total-bar-note" id="adTotalBarNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---- Creative Direction retainer ---- -->
+  <section id="view-creative-direction" class="view">
+    <div class="tool-body">
+      <div class="calc-grid">
+        <div class="calc-copy">
+          <p class="calc-eyebrow-mobile" id="cdEyebrowMobile">Creative Direction Estimate</p>
+          <p class="calc-eyebrow">Creative Direction</p>
+          <p>A monthly retainer to lead your creative &mdash; a weekly check-in plus async availability. Longer commitments get a better rate.</p>
+        </div>
+
+        <div class="calc-form">
+          <div class="calc-block">
+            <p class="calc-block-sub calc-question">Commitment Length</p>
+            <div class="pill-grid" id="grpCdTerm"></div>
+          </div>
+
+          <div class="calc-block">
+            <p class="calc-block-label">Your Investment</p>
+            <div class="invest-card" id="cdInvestCard">
+              <div class="invest-row"><span>Monthly Rate</span><b id="cdMonthlyRate"></b></div>
+              <div class="invest-row"><span>Commitment</span><b id="cdTermLabel"></b></div>
+              <div class="invest-total"><span>Total Contract Value</span><b id="cdTotal"></b></div>
+              <p class="invest-foot">Billed monthly for the length of the term.</p>
+            </div>
+          </div>
+
+          <div class="calc-block">
+            <button type="button" class="submit-cta" data-go="checkout">Review Proposal Estimate</button>
+            <p class="calc-block-sub" style="margin-top:10px;">Add this to your proposal, remove anything you don't want, and send it to Adjuis all at once.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- sticky footer, added 2026-10-22 so every calculator page carries
+         the same running total as you scroll, not just Logo Design -->
+    <div class="total-bar">
+      <div>
+        <div class="total-bar-label">Your Current Total Estimated Investment</div>
+        <div class="total-bar-sub" id="cdTotalBarSub">Full contract, across the term</div>
+      </div>
+      <div class="total-bar-amount">
+        <div><span class="total-bar-value" id="cdTotalBar">$0.00</span></div>
+        <div class="total-bar-note" id="cdTotalBarNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---- Review Proposal Estimate / Checkout ---- -->
+  <section id="view-checkout" class="view">
+    <div class="tool-body">
+      <h1 class="cat-head">Review Your Proposal Estimate</h1>
+      <p class="cat-sub">Everything you've added, in one place. Remove anything you don't want, then send it over.</p>
+
+      <p class="calc-block-sub" id="checkoutEmpty">Nothing added yet &mdash; browse a category and it'll show up here.</p>
+      <div id="checkoutItems"></div>
+
+      <div class="calc-block" id="checkoutTotalBlock" style="display:none;">
+        <div class="invest-card">
+          <div class="invest-total"><span>Proposal Total</span><b id="checkoutGrandTotal">$0.00</b></div>
+        </div>
+      </div>
+
+      <div class="calc-block" id="checkoutSendBlock" style="display:none;">
+        <p class="calc-block-label">Send this estimate to Adjuis</p>
+        <p class="calc-block-sub">I'll follow up to book a call and talk through the project.</p>
+        <div class="contact-row" id="checkoutContactRow">
+          <input class="contact-input" id="checkoutContactName" type="text" placeholder="Your name">
+          <input class="contact-input" id="checkoutContactEmail" type="email" placeholder="Your email">
+          <button class="submit-cta" id="checkoutSubmitBtn">Submit Estimate</button>
+          <p class="submit-msg" id="checkoutSubmitMsg"></p>
+        </div>
+        <div class="submit-success" id="checkoutSubmitSuccess" style="display:none;">
+          <p class="submit-success-check">&#10003; Success &mdash; Thank you for your interest in Adjuis</p>
+          <p class="submit-success-copy">Your Estimate has been sent. We will follow up to make sure your investment is accurate.</p>
+          <div class="copy-actions">
+            <button type="button" class="copy-actions-btn" id="checkoutDownloadBtn">Download a copy</button>
+            <button type="button" class="copy-actions-btn" id="checkoutEmailBtn">Email me a copy</button>
+          </div>
+          <p class="copy-actions-msg" id="checkoutCopyMsg"></p>
+          <button type="button" class="submit-cta book-call-cta">Book a call</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============ Book a call modal ============ -->
+<div class="modal-overlay" id="callModalOverlay">
+  <div class="modal-box">
+    <button type="button" class="modal-close" id="callModalClose" aria-label="Close">&times;</button>
+    <iframe id="callModalFrame" data-src="https://cal.com/adjuis/consultation" title="Book a call with Adjuis" loading="lazy"></iframe>
+  </div>
+</div>
+
+<!-- Shared with the Client Questionnaire -- PRICING and CATEGORIES used to
+     live inline here; moved out to pricing-data.js on 2026-11-02 so both
+     pages read the same numbers. Edit the numbers there, not here. -->
+<script src="pricing-data.js"></script>
+<script>
+/* PRICING now lives in pricing-data.js (loaded above) -- edit the
+   numbers there any time, the calculator recomputes from them. */
+
+/* shared by every category's JS module below (Logo Design's calculator
+   keeps its own local copies since they predate this, but every new
+   category uses these) */
+function fmt(n){ return '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmt0(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+
+/* Discount codes, added 2026-10-22: once SUBMIT_ENDPOINT below is set,
+   codes are checked live against the "Discount Codes" tab on your Google
+   Sheet (see adjuis-estimates-Code.gs), not against a fixed list here --
+   that's what lets each code lock itself out after its own use limit
+   (set per-code in the Sheet, Corey's using ~10-15) instead of being
+   good forever. This object is ONLY a local fallback for previewing the
+   page before SUBMIT_ENDPOINT is deployed -- it has no use limit, so
+   don't rely on it once the Sheet is live. Value is the percent off,
+   written as a decimal (0.10 = 10% off). */
+var DISCOUNT_CODES = {
+  'WELCOME10': 0.10,
+  'ADJUIS20': 0.20
+};
+
+/* Where submitted estimates get sent. Paste in your Google Apps Script
+   Web App URL once it's deployed (see the walkthrough). Left blank, the
+   form still confirms to the client but nothing is recorded remotely. */
+var SUBMIT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzDV9zfsHs9aYV1C_p4VSwzOyAZStEUWsbNp0bEdsDN6B2d0E3PrywNQbvkhnilg7cVAQ/exec';
+
+/* ---------------------------------------------------------------------- */
+/* "Get a copy" -- added 2026-10-24. Every submit-success panel (every
+   category here, plus the Client Questionnaire and Client Meeting
+   Assistant pages) offers the client a download of what they just
+   submitted and/or an emailed copy, instead of leaving the only record
+   sitting in Adjuis's inbox. Download is pure client-side (a Blob, no
+   network round trip, so it always works even with SUBMIT_ENDPOINT
+   blank). Email goes through the same Apps Script endpoint, with
+   type:'emailCopy' telling doPost() to just mail it rather than log a
+   row -- the estimate/response row was already written by the submit
+   that happened a moment before. Every submit payload already carries
+   everything needed; each module just also builds a human-readable
+   label/value list for these two buttons to use. */
+function buildSummaryText(title, fields){
+  var lines = [title, ''];
+  fields.forEach(function(f){
+    if(f[1] === null || f[1] === undefined || f[1] === '') return;
+    lines.push(f[0] + ': ' + f[1]);
+  });
+  lines.push('', 'Adjuis — the creative house of C Mecca', 'adjuis.com');
+  return lines.join('\n');
+}
+function downloadSummaryText(filename, text){
+  var blob = new Blob([text], { type:'text/plain;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+function emailSummaryCopy(email, subject, text, msgEl){
+  if(!email){
+    if(msgEl){ msgEl.textContent = 'Add your email above first.'; msgEl.className = 'copy-actions-msg is-bad'; }
+    return;
+  }
+  if(!SUBMIT_ENDPOINT){
+    if(msgEl){ msgEl.textContent = "Email delivery isn't connected in this preview."; msgEl.className = 'copy-actions-msg is-bad'; }
+    return;
+  }
+  if(msgEl){ msgEl.textContent = 'Sending...'; msgEl.className = 'copy-actions-msg'; }
+  fetch(SUBMIT_ENDPOINT, {
+    method:'POST', mode:'no-cors',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ type:'emailCopy', email: email, subject: subject, body: text, submittedAt: new Date().toISOString() })
+  }).then(function(){
+    if(msgEl){ msgEl.textContent = 'Sent — check your inbox in a minute.'; msgEl.className = 'copy-actions-msg is-ok'; }
+  }).catch(function(){
+    if(msgEl){ msgEl.textContent = 'Something went wrong, try the download instead.'; msgEl.className = 'copy-actions-msg is-bad'; }
+  });
+}
+/* ---------------------------------------------------------------------- */
+/* Shared cart -- a running total across every category, shown next to the
+   nav (see .cart-badge) and used to build the Review Proposal Estimate /
+   checkout page. Each category module below calls ADJUIS_updateCart(key,
+   {...}) every time it recalculates, whether or not the client has ever
+   looked at that category -- what actually puts a category "in" the
+   cart/checkout is window.ADJUIS_visited[key], set true the first time
+   that category's view is shown (see showView() in the nav module below)
+   and set back to false if the client removes it on the checkout page.
+   Removing never clears the client's actual picks on that page -- it just
+   takes that category out of the proposal until they look at it again. */
+var ADJUIS_CART = {
+  'design': { label:'Design', total:0, lines:[], goView:'design' },
+  'logo-design': { label:'Logo Design', total:0, lines:[], goView:'logo-design' },
+  'art-direction': { label:'Art Direction', total:0, lines:[], goView:'art-direction' },
+  'creative-direction': { label:'Creative Direction', total:0, lines:[], goView:'creative-direction' }
+};
+window.ADJUIS_CART = ADJUIS_CART;
+window.ADJUIS_visited = {};
+
+function ADJUIS_updateCart(key, data){
+  var entry = ADJUIS_CART[key];
+  if(!entry) return;
+  entry.total = data.total || 0;
+  entry.lines = data.lines || [];
+  if(data.label) entry.label = data.label;
+  renderCartBadge();
+  var checkoutView = document.getElementById('view-checkout');
+  if(checkoutView && checkoutView.classList.contains('is-active')) renderCheckoutView();
+}
+
+function ADJUIS_activeCartKeys(){
+  return Object.keys(ADJUIS_CART).filter(function(k){ return window.ADJUIS_visited[k] && ADJUIS_CART[k].total > 0; });
+}
+
+function renderCartBadge(){
+  var valueEl = document.getElementById('cartBadgeValue');
+  var btn = document.getElementById('cartBadgeBtn');
+  if(!valueEl || !btn) return;
+  var keys = ADJUIS_activeCartKeys();
+  var total = keys.reduce(function(sum, k){ return sum + ADJUIS_CART[k].total; }, 0);
+  valueEl.textContent = fmt0(total);
+  btn.classList.toggle('has-items', keys.length > 0);
+}
+
+/* builds the Review Proposal Estimate / checkout page: one card per
+   category currently in the cart (see ADJUIS_activeCartKeys above), each
+   with its line-item breakdown and a Remove button, plus the combined
+   total and the one shared "send to Adjuis" form. */
+function renderCheckoutView(){
+  var itemsHost = document.getElementById('checkoutItems');
+  if(!itemsHost) return;
+  var emptyEl = document.getElementById('checkoutEmpty');
+  var totalBlock = document.getElementById('checkoutTotalBlock');
+  var sendBlock = document.getElementById('checkoutSendBlock');
+  var keys = ADJUIS_activeCartKeys();
+
+  itemsHost.innerHTML = '';
+  var grand = 0;
+  keys.forEach(function(k){
+    var entry = ADJUIS_CART[k];
+    grand += entry.total;
+
+    var card = document.createElement('div');
+    card.className = 'checkout-item';
+
+    var head = document.createElement('div');
+    head.className = 'checkout-item-head';
+    var label = document.createElement('p');
+    label.className = 'calc-block-label';
+    label.textContent = entry.label;
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'inline-link checkout-remove';
+    removeBtn.textContent = 'Remove';
+    removeBtn.dataset.removeKey = k;
+    head.appendChild(label);
+    head.appendChild(removeBtn);
+    card.appendChild(head);
+
+    var investCard = document.createElement('div');
+    investCard.className = 'invest-card';
+    entry.lines.forEach(function(pair){
+      var row = document.createElement('div');
+      row.className = 'invest-row';
+      var span = document.createElement('span'); span.textContent = pair[0];
+      var b = document.createElement('b'); b.textContent = pair[1];
+      row.appendChild(span); row.appendChild(b);
+      investCard.appendChild(row);
+    });
+    var totalRow = document.createElement('div');
+    totalRow.className = 'invest-total';
+    var totalSpan = document.createElement('span'); totalSpan.textContent = 'Subtotal';
+    var totalB = document.createElement('b'); totalB.textContent = fmt(entry.total);
+    totalRow.appendChild(totalSpan); totalRow.appendChild(totalB);
+    investCard.appendChild(totalRow);
+    card.appendChild(investCard);
+
+    var editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'inline-link checkout-item-edit';
+    editBtn.textContent = 'Edit this section';
+    editBtn.dataset.go = entry.goView || k;
+    card.appendChild(editBtn);
+
+    itemsHost.appendChild(card);
+  });
+
+  var hasItems = keys.length > 0;
+  if(emptyEl) emptyEl.style.display = hasItems ? 'none' : '';
+  if(totalBlock) totalBlock.style.display = hasItems ? '' : 'none';
+  if(sendBlock) sendBlock.style.display = hasItems ? '' : 'none';
+  var grandEl = document.getElementById('checkoutGrandTotal');
+  if(grandEl) grandEl.textContent = fmt(grand);
+}
+
+/* CATEGORIES now lives in pricing-data.js (loaded above) too. */
+
+(function(){
+  var views = document.querySelectorAll('.view');
+  var navButtons = document.querySelectorAll('.tool-nav button');
+  var toolHeader = document.getElementById('toolHeader');
+  var toolNav = document.getElementById('toolNav');
+  var toolNavToggle = document.getElementById('toolNavToggle');
+  var toolBrandLabel = document.getElementById('toolBrandLabel');
+
+  /* navKey lets a view be entered under a different nav identity than its
+     own element id -- just "branding" right now, which shows the
+     view-logo-design section (Branding Package is that same calculator
+     with extras switched on, not a separate view) but should still
+     highlight the Branding nav button and label itself "Branding Estimate",
+     not "Logo Design Estimate". Defaults to name when every other view's
+     nav key already matches its view id. */
+  function showView(name, navKey){
+    var key = navKey || name;
+    views.forEach(function(v){ v.classList.toggle('is-active', v.id === 'view-' + name); });
+    navButtons.forEach(function(b){ b.classList.toggle('is-current', b.dataset.go === key && !b.dataset.soonLabel); });
+    window.scrollTo(0,0);
+    /* mobile-only header label (hidden on desktop by CSS): names the
+       current category in the room the nav used to take up. Starts
+       hidden on every view change -- the IntersectionObserver below
+       reveals it once the page's own heading scrolls out of view, and
+       scrollTo(0,0) above means that's always the correct starting state */
+    var cat = CATEGORIES.filter(function(c){ return c.key === key; })[0];
+    toolBrandLabel.textContent = cat ? ('/ ' + cat.title + ' Estimate') : '';
+    toolBrandLabel.classList.remove('is-visible');
+
+    /* mark this category as part of the running proposal the first time
+       its view is shown -- see the NOTE on ADJUIS_CART above. "branding"
+       shares the Logo Design calculator's cart entry. */
+    var cartKey = key === 'branding' ? 'logo-design' : key;
+    if(ADJUIS_CART.hasOwnProperty(cartKey)){
+      window.ADJUIS_visited[cartKey] = true;
+    }
+    renderCartBadge();
+    if(name === 'checkout') renderCheckoutView();
+  }
+
+  function closeMobileNav(){
+    toolHeader.classList.remove('is-nav-open');
+    toolNavToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  /* hamburger menu (mobile only -- hidden by CSS above 640px). The panel is
+     position:fixed so it can fill the full screen height; its top is set
+     here, each time it opens, to clear the sticky header's actual
+     rendered height rather than a guessed pixel value. */
+  toolNavToggle.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = toolHeader.classList.toggle('is-nav-open');
+    toolNavToggle.setAttribute('aria-expanded', String(open));
+    if(open){ toolNav.style.top = toolHeader.getBoundingClientRect().height + 'px'; }
+  });
+  document.addEventListener('click', function(e){
+    if(toolHeader.classList.contains('is-nav-open') && !e.target.closest('.tool-nav') && !e.target.closest('.tool-nav-toggle')){
+      closeMobileNav();
+    }
+  });
+
+  document.body.addEventListener('click', function(e){
+    var el = e.target.closest('[data-go]');
+    if(!el) return;
+    if(el.dataset.soonLabel){
+      alert(el.dataset.soonLabel + ' is still being built out. Logo Design is ready to try in the meantime.');
+      closeMobileNav();
+      return;
+    }
+    /* "Branding" isn't its own view -- it's the Logo Design calculator with
+       the Branding Package extras (brand guidelines, business card, flyer,
+       package discount) switched on. window.ADJUIS_setBrandPackage is
+       defined by that calculator's own module, below. Plain "Logo Design"
+       always resets it back off. */
+    if(el.dataset.go === 'branding'){
+      if(window.ADJUIS_setBrandPackage) window.ADJUIS_setBrandPackage(true);
+      showView('logo-design', 'branding');
+      closeMobileNav();
+      return;
+    }
+    if(el.dataset.go === 'logo-design'){
+      if(window.ADJUIS_setBrandPackage) window.ADJUIS_setBrandPackage(false);
+    }
+    showView(el.dataset.go);
+    closeMobileNav();
+  });
+
+  /* Remove a category from the proposal on the checkout page -- see the
+     NOTE on ADJUIS_CART above. Delegated on the static #checkoutItems
+     host since its contents are rebuilt by renderCheckoutView(). */
+  var checkoutItemsHost = document.getElementById('checkoutItems');
+  if(checkoutItemsHost){
+    checkoutItemsHost.addEventListener('click', function(e){
+      var rm = e.target.closest('[data-remove-key]');
+      if(!rm) return;
+      window.ADJUIS_visited[rm.dataset.removeKey] = false;
+      renderCartBadge();
+      renderCheckoutView();
+    });
+  }
+
+  /* category grid */
+  var grid = document.getElementById('catGrid');
+  CATEGORIES.forEach(function(cat){
+    var card = document.createElement('div');
+    card.className = 'cat-card' + (cat.ready ? '' : ' is-soon');
+    card.innerHTML =
+      '<h3 class="cat-card-title">' + cat.title + '</h3>' +
+      (cat.ready ? '' : '<span class="cat-card-badge">Coming soon</span>') +
+      '<p class="cat-card-copy">' + cat.copy + '</p>' +
+      '<button class="cat-card-cta"' + (cat.ready ? ' data-go="' + cat.key + '"' : ' data-go="categories" data-soon-label="' + cat.title + '"') + '>Begin</button>';
+    grid.appendChild(card);
+  });
+
+  /* background video */
+  var v = document.getElementById('gateVideo');
+  if(v){
+    v.src = 'https://media.adjuis.com/bg-pink-purple-clouds.mp4';
+    var p = v.play();
+    if(p && p.catch){ p.catch(function(){}); }
+  }
+})();
+
+/* ---------------------------------------------------------------------- */
+/* Book a call modal                                                      */
+(function(){
+  var overlay = document.getElementById('callModalOverlay');
+  var closeBtn = document.getElementById('callModalClose');
+  var frame = document.getElementById('callModalFrame');
+  if(!overlay) return;
+  function openModal(){
+    if(!frame.getAttribute('src')){ frame.src = frame.dataset.src; }
+    overlay.classList.add('is-open');
+  }
+  function closeModal(){ overlay.classList.remove('is-open'); }
+  /* shared by every category's "Book a call" success-state button, not just
+     Logo Design's -- id kept on that first one for back-compat, the class
+     is what every new category's button (Design, Branding, retainers) uses */
+  document.body.addEventListener('click', function(e){
+    if(e.target.closest('#bookCallBtn') || e.target.closest('.book-call-cta')){ openModal(); }
+  });
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e){ if(e.target === overlay){ closeModal(); } });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeModal(); } });
+})();
+
+/* ---------------------------------------------------------------------- */
+/* Logo Design calculator                                                 */
+(function(){
+  var cfg = PRICING.logoDesign;
+  var rate = PRICING.hourlyRates.logoDesign;
+  var state = {
+    logos:1, logosUnlimited:false, revisions:0, revisionsUnlimited:false, colors:0, colorsUnlimited:false,
+    bgPages:0, budget:cfg.minimum, discount:0, discountCode:'', budgetEnabled:true,
+    dateKnown:false, turnaroundDate:'', turnaroundWeeks:cfg.turnaround.normalWeeks,
+    lockupPieces:1, // 1 = primary mark only, 2 = +secondary, 3 = +secondary+tertiary
+    brandPackage:false // true = entered via "Branding" nav -- adds Business Card + Flyer and the package discount, see window.ADJUIS_setBrandPackage below
+  };
+
+  function fmt(n){ return '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  /* whole-dollar version for inside a pill -- cents are too much detail at
+     that size, and the full fmt() total elsewhere already carries them */
+  function fmt0(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+
+  /* rush fee: a flat $/week-faster charge, PLUS an extra $/week-faster
+     charge per logo beyond crunchLogoThreshold -- see the NOTE on
+     cfg.turnaround above. weeks === undefined is read as "standard
+     timeline" and logos === undefined is read as "1 logo, no crunch", so
+     every existing totalFor() caller that doesn't pass them keeps getting
+     $0 rush fee. */
+  function turnaroundFee(weeks, logos){
+    var tc = cfg.turnaround;
+    var w = weeks === undefined ? tc.normalWeeks : weeks;
+    w = Math.max(tc.minWeeks, Math.min(tc.normalWeeks, w));
+    var weeksFaster = tc.normalWeeks - w;
+    var logoCount = logos === undefined ? 1 : logos;
+    var extraLogos = Math.max(0, logoCount - tc.crunchLogoThreshold);
+    return weeksFaster * tc.perWeekFee + extraLogos * weeksFaster * tc.crunchFeePerExtraLogoPerWeek;
+  }
+
+  /* extra file wrap-up time for each logo system piece beyond the primary
+     mark (a secondary mark, a tertiary lockup, etc.) -- the flat base pass
+     itself is already folded into cfg.minimum, so this only ever adds for
+     pieces 2 and up. See the NOTE on hoursPerExtraLockupPiece above.
+     pieces === undefined is read as "primary mark only" (returns 0). */
+  function fileWrapFee(pieces){
+    var p = pieces === undefined ? 1 : pieces;
+    var extraPieces = Math.max(0, p - 1);
+    return extraPieces * cfg.hoursPerExtraLockupPiece * rate;
+  }
+
+  /* how many revision rounds this turnaround can support -- see the NOTE
+     on cfg.revisionCapacity above. Returns null for "no cap". */
+  function maxRevisionsFor(logos, weeks){
+    var rc = cfg.revisionCapacity;
+    if(logos <= rc.noCapLogos) return null;
+    var tc = cfg.turnaround;
+    var w = Math.max(tc.minWeeks, Math.min(tc.normalWeeks, weeks === undefined ? tc.normalWeeks : weeks));
+    return Math.max(1, Math.floor(w * rc.revisionsPerWeek));
+  }
+
+  /* total for any hypothetical combination, so we can both calculate the
+     real total and test whether a given option would fit the budget.
+     logosUnlimited, turnaroundWeeks, and lockupPieces are optional and
+     default to "no rush, logos priced per-concept, primary mark only" */
+  function totalFor(logos, revisions, revisionsUnlimited, colors, colorsUnlimited, bgPages, logosUnlimited, turnaroundWeeks, lockupPieces){
+    var total = cfg.minimum;
+    total += logosUnlimited ? cfg.unlimitedFlatFee : Math.max(0, logos - 1) * cfg.hoursPerExtraLogo * rate;
+    total += revisionsUnlimited ? cfg.unlimitedFlatFee : revisions * cfg.hoursPerRevision * rate;
+    total += colorsUnlimited ? cfg.unlimitedFlatFee : colors * cfg.hoursPerColorOption * rate;
+    total += bgPages * PRICING.brandGuidelines.perPage;
+    total += turnaroundFee(turnaroundWeeks, logos);
+    total += fileWrapFee(lockupPieces);
+    return total;
+  }
+
+  function rawTotal(){
+    var total = totalFor(state.logos, state.revisions, state.revisionsUnlimited, state.colors, state.colorsUnlimited, state.bgPages, state.logosUnlimited, state.turnaroundWeeks, state.lockupPieces);
+    /* Branding Package: the same calculator above, plus Business Card +
+       Flyer (PRICING.design.businessCard/flyer -- left over from the now-
+       removed standalone Design section, kept here as the one place those
+       two prices live), all given PRICING.brandingPackage.packageDiscount
+       off the combined total. Only active when entered via the Branding
+       nav/card -- see window.ADJUIS_setBrandPackage. */
+    if(state.brandPackage){
+      total += PRICING.design.businessCard + PRICING.design.flyer;
+      total *= (1 - PRICING.brandingPackage.packageDiscount);
+    }
+    return total;
+  }
+
+  /* each pill now carries three lines: the value, a one-line description
+     of what the client gets at that tier, and a live price (filled in by
+     renderAffordability() below, since it depends on every other current
+     selection -- see the "Running total" note on apply()). desc copy below
+     is a first draft for the redesign Corey's doing -- easy to swap out,
+     just text. */
+  function buildPills(container, opts){
+    var el = document.getElementById(container);
+    opts.forEach(function(o){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pill' + (o.wide ? ' pill-wide' : '') + (o.full ? ' pill-full' : '');
+      b.dataset.value = o.value;
+      var value = document.createElement('span');
+      value.className = 'pill-value';
+      value.textContent = o.label;
+      b.appendChild(value);
+      if(o.desc){
+        var desc = document.createElement('span');
+        desc.className = 'pill-desc';
+        desc.textContent = o.desc;
+        b.appendChild(desc);
+      }
+      var price = document.createElement('span');
+      price.className = 'pill-price';
+      b.appendChild(price);
+      el.appendChild(b);
+    });
+  }
+
+  /* NOTE: concepts capped at 6, revisions at 6, colors at 4, turnaround at
+     4 weeks max -- 2026-10-20. No more "10+"/"7+"/"Work Until It's Right"
+     overflow pills on any of these; see the removed logosExtra/
+     revisionsExtra UI and the simplified click handlers below. */
+  var CONCEPT_DESCRIPTIONS = {
+    1: 'One logo direction to review.',
+    2: 'Two directions to compare.',
+    3: 'Three directions, our most popular starting point.',
+    4: 'Four directions for extra range.',
+    5: 'Five directions to explore before committing.',
+    6: 'Six directions, the most room to explore.'
+  };
+  var REVISION_DESCRIPTIONS = {
+    0: 'Final files as designed, no revision rounds built in.',
+    1: 'One round of refinement on the chosen direction.',
+    2: 'Two rounds, our most common pick.',
+    3: 'Three rounds for extra back and forth.',
+    4: 'Four rounds of refinement.',
+    5: 'Five rounds for a longer collaborative process.',
+    6: 'Six rounds, the most refinement offered.'
+  };
+  var COLOR_DESCRIPTIONS = {
+    0: 'Single color version only.',
+    1: 'One color variation to choose from.',
+    2: 'Two color variations to compare.',
+    3: 'Three color variations to compare.',
+    4: 'Four color variations, the most offered.'
+  };
+  var TURNAROUND_DESCRIPTIONS = {
+    4: 'Standard timeline, no rush fee.',
+    3: 'A week faster than standard, rush pricing applies.',
+    2: 'Two weeks faster, higher rush pricing applies.',
+    1: 'Fastest turnaround offered, highest rush pricing applies.'
+  };
+  var LOCKUP_DESCRIPTIONS = {
+    1: 'Just the main logo mark.',
+    2: 'Adds a secondary mark option.',
+    3: 'Adds a secondary mark and a tertiary lockup.'
+  };
+
+  buildPills('grpOptions', [1,2,3,4,5,6].map(function(n){ return {label:n, value:n, desc:CONCEPT_DESCRIPTIONS[n]}; }));
+  buildPills('grpRevisions', [0,1,2,3,4,5,6].map(function(n){ return {label:n, value:n, desc:REVISION_DESCRIPTIONS[n]}; }));
+  buildPills('grpColors', [0,1,2,3,4].map(function(n){ return {label:n, value:n, desc:COLOR_DESCRIPTIONS[n]}; }));
+  buildPills('grpTurnaround', [4,3,2,1].map(function(n){ return {label:n + (n === 1 ? ' Week' : ' Weeks'), value:n, wide:true, desc:TURNAROUND_DESCRIPTIONS[n]}; }));
+  buildPills('grpLockup', [
+    {label:'Primary Mark Only', value:1, wide:true, desc:LOCKUP_DESCRIPTIONS[1]},
+    {label:'+ Secondary Mark', value:2, wide:true, desc:LOCKUP_DESCRIPTIONS[2]},
+    {label:'+ Secondary & Tertiary', value:3, wide:true, desc:LOCKUP_DESCRIPTIONS[3]}
+  ]);
+
+  function selectPill(groupEl, value){
+    groupEl.querySelectorAll('.pill').forEach(function(p){
+      p.classList.toggle('is-selected', String(p.dataset.value) === String(value));
+    });
+  }
+
+  var grpLogos = document.getElementById('grpOptions');
+  var grpRevisions = document.getElementById('grpRevisions');
+  var grpColors = document.getElementById('grpColors');
+  var grpLockup = document.getElementById('grpLockup');
+  var grpTurnaround = document.getElementById('grpTurnaround');
+  var turnaroundExtraInput = document.getElementById('turnaroundExtraInput');
+  var turnaroundHint = document.getElementById('turnaroundHint');
+  var dateKnownToggle = document.getElementById('dateKnownToggle');
+  var dateKnownToggleLabel = document.getElementById('dateKnownToggleLabel');
+  var dateKnownPanel = document.getElementById('dateKnownPanel');
+  var dateUnknownPanel = document.getElementById('dateUnknownPanel');
+  var turnaroundDateInput = document.getElementById('turnaroundDateInput');
+  var turnaroundDateCta = document.getElementById('turnaroundDateCta');
+  var turnaroundDateRow = document.getElementById('turnaroundDateRow');
+  var budgetHint = document.getElementById('budgetHint');
+  var budgetInputMain = document.getElementById('budgetInput');
+  var budgetInputSticky = document.getElementById('budgetInputSticky');
+  var budgetGo = document.getElementById('budgetGo');
+  var budgetGoSticky = document.getElementById('budgetGoSticky');
+  var budgetStickyHint = document.getElementById('budgetStickyHint');
+  var budgetStickyNav = document.getElementById('budgetStickyNav');
+  var budgetBarFill = document.getElementById('budgetBarFill');
+  var budgetBarSpent = document.getElementById('budgetBarSpent');
+  var budgetBarRemaining = document.getElementById('budgetBarRemaining');
+  var budgetBarFillSticky = document.getElementById('budgetBarFillSticky');
+  var budgetBarSpentSticky = document.getElementById('budgetBarSpentSticky');
+  var budgetBarRemainingSticky = document.getElementById('budgetBarRemainingSticky');
+
+  /* live spent-vs-left graphic bar: grows green with the current picks,
+     turns red and flips the right-hand label to "over" once they pass budget */
+  function paintBudgetBar(fillEl, spentEl, remainEl, spent, budget, active, overLabel, spentLabel){
+    fillEl.classList.toggle('is-inactive', !active);
+    remainEl.classList.toggle('is-inactive', !active);
+    if(!active){
+      /* toggle is off: freeze instead of animating, every number just reads "Inactive" */
+      fillEl.style.width = '100%';
+      fillEl.classList.remove('is-over');
+      spentEl.textContent = 'Inactive';
+      remainEl.textContent = 'Inactive';
+      remainEl.classList.remove('is-over');
+      return;
+    }
+    var over = spent > budget;
+    /* once over (budget blown, or the typed value is below the minimum and
+       can never cover the project), fill all the way red instead of a
+       ratio -- a partial-width red bar reads as "almost there", not "over" */
+    var pct = over ? 100 : (budget > 0 ? Math.max(0, Math.min(100, (spent / budget) * 100)) : 0);
+    fillEl.style.width = pct + '%';
+    fillEl.classList.toggle('is-over', over);
+    spentEl.textContent = spentLabel || fmt(spent);
+    remainEl.textContent = over ? (fmt(spent - budget) + ' ' + (overLabel || 'over')) : (fmt(budget - spent) + ' left');
+    remainEl.classList.toggle('is-over', over);
+  }
+  function renderBudgetBar(spent, budgetOverride, overLabel, spentLabel){
+    var budget = budgetOverride === undefined ? state.budget : budgetOverride;
+    var active = state.budgetEnabled;
+    paintBudgetBar(budgetBarFill, budgetBarSpent, budgetBarRemaining, spent, budget, active, overLabel, spentLabel);
+    paintBudgetBar(budgetBarFillSticky, budgetBarSpentSticky, budgetBarRemainingSticky, spent, budget, active, overLabel, spentLabel);
+  }
+
+  /* color-code each pill green ("fits your current budget") or grey
+     ("would go over it") -- purely a visual hint now, every pill stays
+     clickable so the client can freely mix and match and watch the price
+     respond */
+  function renderAffordability(){
+    /* "Running total" pricing inside each pill (per Corey, 2026-10-20):
+       every pill shows what the FULL project would cost if that one were
+       picked, combined with whatever's currently selected everywhere
+       else -- not just that option's own marginal price. Reuses the exact
+       same costForValue() this function already computed for the
+       green/grey budget-affordability coloring, just also writes it into
+       the pill's .pill-price span. */
+    function apply(groupEl, costForValue){
+      groupEl.querySelectorAll('.pill').forEach(function(p){
+        var selected = p.classList.contains('is-selected');
+        var cost = costForValue(p.dataset.value);
+        var priceEl = p.querySelector('.pill-price');
+        if(priceEl) priceEl.textContent = fmt0(cost);
+        /* no budget set — every option reads as equally available */
+        var afford = !state.budgetEnabled || selected || cost <= state.budget;
+        p.classList.toggle('is-disabled', !afford);
+      });
+    }
+    apply(grpLogos, function(v){
+      return totalFor(Number(v), state.revisions, state.revisionsUnlimited, state.colors, state.colorsUnlimited, state.bgPages, false, state.turnaroundWeeks, state.lockupPieces);
+    });
+    apply(grpRevisions, function(v){
+      return totalFor(state.logos, Number(v), false, state.colors, state.colorsUnlimited, state.bgPages, state.logosUnlimited, state.turnaroundWeeks, state.lockupPieces);
+    });
+    apply(grpColors, function(v){
+      return totalFor(state.logos, state.revisions, state.revisionsUnlimited, Number(v), false, state.bgPages, state.logosUnlimited, state.turnaroundWeeks, state.lockupPieces);
+    });
+    apply(grpTurnaround, function(v){
+      return totalFor(state.logos, state.revisions, state.revisionsUnlimited, state.colors, state.colorsUnlimited, state.bgPages, state.logosUnlimited, Number(v), state.lockupPieces);
+    });
+    apply(grpLockup, function(v){
+      return totalFor(state.logos, state.revisions, state.revisionsUnlimited, state.colors, state.colorsUnlimited, state.bgPages, state.logosUnlimited, state.turnaroundWeeks, Number(v));
+    });
+  }
+
+  /* locks out (not just greys out) any revision count your current logo
+     count + turnaround genuinely can't support -- see the NOTE on
+     cfg.revisionCapacity above. Clamps the current pick down if it's no
+     longer allowed. */
+  function applyRevisionCap(){
+    var cap = maxRevisionsFor(state.logos, state.turnaroundWeeks);
+    var capMsg = cap === null ? '' : ('Not available with this logo count + turnaround — max ' + cap + ' revision round' + (cap === 1 ? '' : 's') + ' right now.');
+
+    grpRevisions.querySelectorAll('.pill').forEach(function(p){
+      var over = cap !== null && Number(p.dataset.value) > cap;
+      p.classList.toggle('is-capped', over);
+      p.title = over ? capMsg : '';
+    });
+
+    if(cap !== null){
+      if(state.revisions > cap){
+        state.revisions = cap;
+      }
+      selectPill(grpRevisions, state.revisions);
+    }
+  }
+
+  function afterChange(){
+    applyRevisionCap();
+    renderAffordability();
+    recalc();
+  }
+
+  selectPill(grpLogos, state.logos);
+  selectPill(grpRevisions, state.revisions);
+  selectPill(grpColors, state.colors);
+  selectPill(grpTurnaround, state.turnaroundWeeks);
+  selectPill(grpLockup, state.lockupPieces);
+  applyRevisionCap();
+  renderAffordability();
+  turnaroundDateInput.min = new Date().toISOString().slice(0, 10);
+
+  /* NOTE: concepts, revisions, and colors are hard-capped now (no more
+     "10+"/"7+"/"Work Until It's Right" overflow pills) -- 2026-10-20, so
+     every pick in these three groups maps straight to a plain number. */
+  grpLogos.addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    state.logos = Number(b.dataset.value);
+    selectPill(grpLogos, state.logos);
+    afterChange();
+  });
+
+  grpRevisions.addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    if(b.classList.contains('is-capped')) return;
+    state.revisions = Number(b.dataset.value);
+    selectPill(grpRevisions, state.revisions);
+    afterChange();
+  });
+
+  grpColors.addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    state.colors = Number(b.dataset.value);
+    selectPill(grpColors, b.dataset.value);
+    afterChange();
+  });
+
+  grpLockup.addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    state.lockupPieces = Number(b.dataset.value);
+    selectPill(grpLockup, b.dataset.value);
+    afterChange();
+  });
+
+  /* turns a yyyy-mm-dd date into "weeks from today" (rounded up), so a date
+     3 days out still reads as a 1-week rush rather than 0. Returns null for
+     an empty/invalid date so callers can fall back to the standard timeline. */
+  function weeksFromDate(dateStr){
+    if(!dateStr) return null;
+    var target = new Date(dateStr + 'T00:00:00');
+    if(isNaN(target.getTime())) return null;
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var days = Math.ceil((target.getTime() - today.getTime()) / 86400000);
+    return Math.ceil(days / 7);
+  }
+
+  grpTurnaround.addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    state.turnaroundWeeks = Number(b.dataset.value);
+    turnaroundExtraInput.value = '';
+    selectPill(grpTurnaround, b.dataset.value);
+    afterChange();
+  });
+
+  turnaroundExtraInput.addEventListener('input', function(){
+    var raw = turnaroundExtraInput.value.trim();
+    var val = Number(raw);
+    if(raw === '' || isNaN(val) || val < 1) return;
+    state.turnaroundWeeks = val;
+    selectPill(grpTurnaround, val);
+    afterChange();
+  });
+
+  dateKnownToggle.addEventListener('click', function(){
+    state.dateKnown = !state.dateKnown;
+    dateKnownToggle.classList.toggle('is-on', state.dateKnown);
+    dateKnownToggle.setAttribute('aria-checked', String(state.dateKnown));
+    dateKnownToggleLabel.textContent = state.dateKnown ? 'Yes' : 'No';
+    dateKnownPanel.classList.toggle('is-visible', state.dateKnown);
+    dateUnknownPanel.classList.toggle('is-visible', !state.dateKnown);
+
+    if(state.dateKnown){
+      /* show the CTA again unless a date was already picked earlier this
+         visit -- then keep showing that date instead of hiding it behind
+         the button again */
+      var hasDate = !!state.turnaroundDate;
+      turnaroundDateCta.classList.toggle('is-hidden', hasDate);
+      turnaroundDateRow.classList.toggle('is-hidden', !hasDate);
+      var w = weeksFromDate(turnaroundDateInput.value);
+      state.turnaroundWeeks = w === null ? cfg.turnaround.normalWeeks : w;
+    } else {
+      var selectedPill = grpTurnaround.querySelector('.pill.is-selected');
+      var extraVal = Number(turnaroundExtraInput.value);
+      if(selectedPill){
+        state.turnaroundWeeks = Number(selectedPill.dataset.value);
+      } else if(turnaroundExtraInput.value.trim() !== '' && !isNaN(extraVal) && extraVal >= 1){
+        state.turnaroundWeeks = extraVal;
+      } else {
+        state.turnaroundWeeks = cfg.turnaround.normalWeeks;
+        selectPill(grpTurnaround, cfg.turnaround.normalWeeks);
+      }
+    }
+    afterChange();
+  });
+
+  /* the date field starts collapsed behind an "Add Date" CTA instead of
+     showing an empty calendar input the moment "Yes" is toggled on --
+     clicking it reveals the field and opens the native picker where the
+     browser supports it */
+  function showTurnaroundDateField(){
+    turnaroundDateCta.classList.add('is-hidden');
+    turnaroundDateRow.classList.remove('is-hidden');
+    turnaroundDateInput.focus();
+    if(turnaroundDateInput.showPicker){
+      try{ turnaroundDateInput.showPicker(); }catch(e){}
+    }
+  }
+  function applyTurnaroundDate(){
+    var w = weeksFromDate(turnaroundDateInput.value);
+    if(w === null) return;
+    state.turnaroundDate = turnaroundDateInput.value;
+    state.turnaroundWeeks = w;
+    afterChange();
+  }
+  turnaroundDateCta.addEventListener('click', showTurnaroundDateField);
+  turnaroundDateInput.addEventListener('change', applyTurnaroundDate);
+  turnaroundDateInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); applyTurnaroundDate(); }
+  });
+
+  function recalc(){
+    var base = rawTotal();
+    var discounted = state.discount > 0 ? base * (1 - state.discount) : base;
+    var strikeEl = document.getElementById('totalStrike');
+    var valueEl = document.getElementById('totalValue');
+    if(state.discount > 0){
+      strikeEl.style.display = '';
+      strikeEl.textContent = fmt(base);
+      valueEl.textContent = fmt(discounted);
+    } else {
+      strikeEl.style.display = 'none';
+      valueEl.textContent = fmt(base);
+    }
+    var tc = cfg.turnaround;
+    var clampedWeeks = Math.max(tc.minWeeks, Math.min(tc.normalWeeks, state.turnaroundWeeks));
+    var rushFee = turnaroundFee(state.turnaroundWeeks, state.logos);
+    var lockupLabels = {1:'Primary Mark Only', 2:'+ Secondary Mark', 3:'+ Secondary & Tertiary'};
+    var lockupLabel = lockupLabels[state.lockupPieces] || lockupLabels[1];
+
+    var note;
+    if(state.discount > 0){
+      note = state.discountCode + ' applied';
+    } else if(base <= cfg.minimum){
+      note = 'Minimum investment';
+    } else {
+      var parts = [];
+      if(state.logosUnlimited) parts.push('unlimited logo concepts'); else if(state.logos > 1) parts.push((state.logos - 1) + ' extra logo' + (state.logos - 1 > 1 ? 's' : ''));
+      if(state.lockupPieces > 1) parts.push(lockupLabel.toLowerCase().replace('+ ', '') + ' lockup');
+      if(state.revisionsUnlimited) parts.push("unlimited revisions"); else if(state.revisions > 0) parts.push(state.revisions + ' revision' + (state.revisions > 1 ? 's' : ''));
+      if(state.colorsUnlimited) parts.push("unlimited colors"); else if(state.colors > 0) parts.push(state.colors + ' color option' + (state.colors > 1 ? 's' : ''));
+      if(state.bgPages > 0) parts.push(state.bgPages + '-page guide');
+      if(rushFee > 0) parts.push(clampedWeeks + '-week rush turnaround');
+      note = parts.length ? ('Includes ' + parts.join(', ')) : 'Based off your selections';
+    }
+    document.getElementById('totalNote').textContent = note;
+
+    var breakdown = document.getElementById('totalBreakdown');
+    var revisionsLabel = state.revisionsUnlimited ? '<b>Unlimited</b> Revisions' : '<b>' + state.revisions + '</b> Revision' + (state.revisions === 1 ? '' : 's');
+    var colorsLabel = state.colorsUnlimited ? '<b>Unlimited</b> Color Options' : '<b>' + state.colors + '</b> Color Option' + (state.colors === 1 ? '' : 's');
+    var bgLabel = state.bgPages > 0 ? '<b>Brand Booklet</b> (' + state.bgPages + ' pages)' : '<b>No</b> Brand Booklet (0 pages)';
+    var logosLabel = state.logosUnlimited ? '<b>Unlimited</b> Logo Designs' : ('<b>' + state.logos + '</b> Logo Design' + (state.logos === 1 ? '' : 's'));
+    var turnaroundBreakdownLabel = rushFee > 0 ? ('<b>' + clampedWeeks + '-Week</b> Rush Turnaround') : '<b>Standard</b> Turnaround (' + tc.normalWeeks + ' weeks)';
+    var lockupBreakdownLabel = '<b>' + lockupLabel + '</b>';
+    breakdown.innerHTML =
+      '<span>' + logosLabel + '</span>' +
+      '<span>' + lockupBreakdownLabel + '</span>' +
+      '<span>' + revisionsLabel + '</span>' +
+      '<span>' + colorsLabel + '</span>' +
+      '<span>' + bgLabel + '</span>' +
+      '<span>' + turnaroundBreakdownLabel + '</span>';
+
+    /* "Your Investment" summary card */
+    document.getElementById('investLogos').textContent = state.logosUnlimited ? "Work until it's right" : (state.logos + ' Concept' + (state.logos === 1 ? '' : 's'));
+    document.getElementById('investLockup').textContent = lockupLabel;
+    document.getElementById('investRevisions').textContent = state.revisionsUnlimited ? "Work until it's right" : (state.revisions + ' Revision' + (state.revisions === 1 ? '' : 's'));
+    document.getElementById('investColors').textContent = state.colorsUnlimited ? "Work until it's right" : (state.colors + ' Color Option' + (state.colors === 1 ? '' : 's'));
+    document.getElementById('investBooklet').textContent = state.bgPages > 0 ? (state.bgPages + ' Page' + (state.bgPages === 1 ? '' : 's')) : 'Not included';
+    document.getElementById('investTurnaround').textContent = rushFee > 0 ? (clampedWeeks + ' Week' + (clampedWeeks === 1 ? '' : 's') + ' (+' + fmt(rushFee) + ')') : ('Standard (' + tc.normalWeeks + ' weeks)');
+    document.getElementById('investTotal').textContent = state.discount > 0 ? fmt(discounted) : fmt(base);
+
+    /* Branding Package mode: swap the eyebrow/labels, hide the upsell link
+       to itself, reveal the "also included" note + the invest-card row for
+       it. Plain Logo Design mode (the default) shows the opposite of all
+       of these. See window.ADJUIS_setBrandPackage below, and rawTotal()
+       above for the pricing side of this. */
+    var eyebrowDesktop = document.getElementById('calcEyebrow');
+    var eyebrowMobile = document.getElementById('calcEyebrowMobile');
+    if(eyebrowDesktop) eyebrowDesktop.textContent = state.brandPackage ? 'Branding Package' : 'Logo Design';
+    if(eyebrowMobile) eyebrowMobile.textContent = state.brandPackage ? 'Branding Package Estimate' : 'Logo Design Estimate';
+    var upsellRow = document.getElementById('brandPackageUpsellRow');
+    var includedRow = document.getElementById('brandPackageIncluded');
+    var investBrandRow = document.getElementById('investBrandPackageRow');
+    var investLogosLabel = document.getElementById('investLogosLabel');
+    var bgPagesQuestion = document.getElementById('bgPagesQuestion');
+    if(upsellRow) upsellRow.classList.toggle('is-hidden', state.brandPackage);
+    if(includedRow) includedRow.classList.toggle('is-hidden', !state.brandPackage);
+    if(investBrandRow) investBrandRow.classList.toggle('is-hidden', !state.brandPackage);
+    if(investLogosLabel) investLogosLabel.textContent = 'Logo Design';
+    /* Brand Guidelines page-count question: Branding Package mode only --
+       plain Logo Design shows just the "Get a full branding package" link
+       instead (see the HTML comment on #brandGuidelinesBlock). */
+    if(bgPagesQuestion) bgPagesQuestion.classList.toggle('is-hidden', !state.brandPackage);
+
+    /* turnaround hint copy, mirrors the budget hint pattern elsewhere on the page */
+    turnaroundHint.textContent = rushFee > 0
+      ? ('Rush fee: +' + fmt(rushFee) + ' — ' + clampedWeeks + ' week' + (clampedWeeks === 1 ? '' : 's') + ' faster than our standard ' + tc.normalWeeks + '-week turnaround.')
+      : ('No rush fee — within our standard ' + tc.normalWeeks + '-week turnaround.');
+
+    /* heads-up note: a big scope AND a rushed (shorter than standard)
+       timeline together -- rushFee > 0 is exactly "shorter than standard" */
+    var largeScope = state.logosUnlimited || state.logos > 3 || state.revisionsUnlimited || state.revisions > 3 || state.colorsUnlimited || state.colors > 3;
+    document.getElementById('largeProjectNote').classList.toggle('is-visible', largeScope && rushFee > 0);
+
+    /* red outline on the budget fields once picks run past budget; never
+       shown once the budget toggle is off, since there's no budget to be over */
+    var spent = state.discount > 0 ? discounted : base;
+    var budgetInputEl = document.getElementById('budgetInput');
+    var over = state.budgetEnabled && spent > state.budget;
+    budgetInputEl.classList.toggle('is-over', over);
+    budgetInputSticky.classList.toggle('is-over', over);
+    renderBudgetBar(spent);
+
+    /* feed the shared cart / checkout page -- see the NOTE on ADJUIS_CART
+       near the top of this script. */
+    var cartLines = [
+      ['Logos', document.getElementById('investLogos').textContent],
+      ['Logo System', lockupLabel],
+      ['Revisions', document.getElementById('investRevisions').textContent],
+      ['Colors', document.getElementById('investColors').textContent],
+      ['Brand Guidelines', document.getElementById('investBooklet').textContent],
+      ['Turnaround', document.getElementById('investTurnaround').textContent]
+    ];
+    if(state.discount > 0) cartLines.push(['Discount', state.discountCode + ' applied']);
+    ADJUIS_updateCart('logo-design', {
+      label: state.brandPackage ? 'Branding Package' : 'Logo Design',
+      total: state.discount > 0 ? discounted : base,
+      lines: cartLines
+    });
+  }
+
+  document.getElementById('budgetMinLabel').textContent = '$' + cfg.minimum.toLocaleString('en-US') + ' minimum';
+  document.getElementById('budgetStickyMinLabel').textContent = '$' + cfg.minimum.toLocaleString('en-US') + ' minimum';
+
+  function syncBudgetInputs(val){
+    budgetInputMain.value = val;
+    budgetInputSticky.value = val;
+  }
+
+  /* green "Enter" button hint: lit up on whichever field the user is
+     currently typing a different number into than what's applied */
+  function refreshDirty(el){
+    var val = Number(el.value);
+    var dirty = el.value.trim() !== '' && !isNaN(val) && val !== state.budget;
+    budgetGo.classList.toggle('is-dirty', dirty);
+    budgetGoSticky.classList.toggle('is-dirty', dirty);
+  }
+
+  function applyBudget(sourceEl){
+    var input = sourceEl || budgetInputMain;
+    var raw = input.value.trim();
+    if(raw === ''){
+      input.value = state.budget;
+      return;
+    }
+    var val = Number(raw);
+    if(!val || val < cfg.minimum){
+      /* the message now lives inside the bar itself, in white -- nothing
+         needed below the field any more */
+      budgetHint.textContent = '';
+      budgetHint.className = 'budget-hint';
+      budgetStickyHint.textContent = '';
+      /* keep whatever they typed, and keep both fields (main + sticky) in
+         sync with it, so scrolling doesn't reset or disagree on the value */
+      budgetInputMain.value = raw;
+      budgetInputSticky.value = raw;
+      budgetInputMain.classList.add('is-under-min');
+      budgetInputSticky.classList.add('is-under-min');
+      /* an under-minimum budget can never cover the project, so the bar
+         reads full and red the same as any other over-budget state, but
+         says so by name instead of the usual spent amount */
+      renderBudgetBar(rawTotal(), Math.max(0, val || 0), 'under', "You're under the minimum");
+      return;
+    }
+    budgetInputMain.classList.remove('is-under-min');
+    budgetInputSticky.classList.remove('is-under-min');
+    budgetHint.textContent = '';
+    budgetHint.className = 'budget-hint';
+    budgetStickyHint.textContent = '';
+    state.budget = val;
+    syncBudgetInputs(val);
+    afterChange();
+    budgetGo.classList.remove('is-dirty');
+    budgetGoSticky.classList.remove('is-dirty');
+  }
+
+  budgetGo.addEventListener('click', function(){ applyBudget(budgetInputMain); });
+  budgetGoSticky.addEventListener('click', function(){ applyBudget(budgetInputSticky); });
+  budgetInputMain.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); applyBudget(budgetInputMain); }
+  });
+  budgetInputSticky.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); applyBudget(budgetInputSticky); }
+  });
+  budgetInputMain.addEventListener('input', function(){ refreshDirty(budgetInputMain); });
+  budgetInputSticky.addEventListener('input', function(){ refreshDirty(budgetInputSticky); });
+
+  /* "Do you have a budget?" on/off toggle — off turns every budget feature
+     (the field, the hints, the pill affordability coloring) into an inert,
+     greyed-out state so the client can just pick options freely */
+  var budgetToggle = document.getElementById('budgetToggle');
+  var budgetToggleLabel = document.getElementById('budgetToggleLabel');
+  var budgetControls = document.getElementById('budgetControls');
+  budgetToggle.addEventListener('click', function(){
+    state.budgetEnabled = !state.budgetEnabled;
+    budgetToggle.classList.toggle('is-on', state.budgetEnabled);
+    budgetToggle.setAttribute('aria-checked', state.budgetEnabled ? 'true' : 'false');
+    budgetToggleLabel.textContent = state.budgetEnabled ? 'Yes' : 'No';
+    budgetControls.classList.toggle('is-off', !state.budgetEnabled);
+    budgetInputMain.disabled = !state.budgetEnabled;
+    budgetInputSticky.disabled = !state.budgetEnabled;
+    budgetGo.disabled = !state.budgetEnabled;
+    budgetGoSticky.disabled = !state.budgetEnabled;
+    if(!state.budgetEnabled){
+      budgetStickyNav.classList.remove('is-visible');
+    }
+    afterChange();
+  });
+
+  /* secondary sticky budget bar: shows once the primary budget block has
+     scrolled up behind the (also sticky) main header, mirrors the field +
+     the hint copy that would otherwise be scrolled out of view */
+  (function(){
+    var budgetBlock = document.getElementById('budgetBlock');
+    var header = document.querySelector('.tool-header');
+    if(!budgetBlock || !header || !('IntersectionObserver' in window)){ return; }
+    var io;
+    function setup(){
+      var headerH = header.offsetHeight;
+      budgetStickyNav.style.top = headerH + 'px';
+      if(io){ io.disconnect(); }
+      io = new IntersectionObserver(function(entries){
+        entries.forEach(function(entry){
+          var scrolledPast = state.budgetEnabled && !entry.isIntersecting && entry.boundingClientRect.top < 0;
+          budgetStickyNav.classList.toggle('is-visible', scrolledPast);
+        });
+      }, { rootMargin: '-' + headerH + 'px 0px 0px 0px', threshold: 0 });
+      io.observe(budgetBlock);
+    }
+    setup();
+    window.addEventListener('resize', setup);
+  })();
+
+  /* mobile-only: reveal "/ Logo Design" next to the mark only once the
+     page's own "Logo Design Estimate" heading has scrolled up behind the
+     sticky header -- avoids naming the category twice on screen at once */
+  (function(){
+    var eyebrow = document.getElementById('calcEyebrowMobile');
+    var header = document.querySelector('.tool-header');
+    var label = document.getElementById('toolBrandLabel');
+    if(!eyebrow || !header || !label || !('IntersectionObserver' in window)){ return; }
+    var io;
+    function setup(){
+      var headerH = header.offsetHeight;
+      if(io){ io.disconnect(); }
+      io = new IntersectionObserver(function(entries){
+        entries.forEach(function(entry){
+          var scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+          label.classList.toggle('is-visible', scrolledPast);
+        });
+      }, { rootMargin: '-' + headerH + 'px 0px 0px 0px', threshold: 0 });
+      io.observe(eyebrow);
+    }
+    setup();
+    window.addEventListener('resize', setup);
+  })();
+
+  /* Brand Guidelines page count -- also doubles as the one visible input
+     inside Branding Package mode (see rawTotal() and recalc() above). Any
+     non-numeric or negative entry just floors to 0 rather than blocking. */
+  var bgPagesInput = document.getElementById('bgPagesInput');
+  if(bgPagesInput){
+    bgPagesInput.addEventListener('input', function(){
+      var n = Math.max(0, Math.floor(Number(bgPagesInput.value)) || 0);
+      state.bgPages = n;
+      afterChange();
+    });
+  }
+
+  /* Entry point for the "Branding" nav/card -- called by the outer nav
+     module's click handler (see the comment there) with true when routing
+     into Branding, false when routing back to plain Logo Design. Reuses
+     this exact calculator rather than duplicating it; see state.brandPackage,
+     rawTotal(), and the brand-package-specific toggles inside recalc(). */
+  window.ADJUIS_setBrandPackage = function(on){
+    state.brandPackage = !!on;
+    /* leaving Branding Package mode hides the page-count field (see
+       recalc() above), so reset it too -- otherwise a page count set
+       while in Branding Package mode would keep silently charging for a
+       booklet nobody can see or edit on the plain Logo Design page. */
+    if(!state.brandPackage){
+      state.bgPages = 0;
+      if(bgPagesInput) bgPagesInput.value = 0;
+    }
+    afterChange();
+  };
+
+  /* Checking a code (clicking Apply) never counts as a "use" -- only an
+     actual submitted estimate does, server-side, in doPost() on the
+     Apps Script. This is just a live read of whether the code is still
+     good. See the NOTE on DISCOUNT_CODES above and adjuis-estimates-Code.gs. */
+  var discGoBtn = document.getElementById('discGo');
+  discGoBtn.addEventListener('click', function(){
+    var input = document.getElementById('discInput');
+    var msg = document.getElementById('discMsg');
+    var code = input.value.trim().toUpperCase();
+    if(!code){ return; }
+
+    function applyResult(valid, discount){
+      if(valid){
+        state.discount = discount;
+        state.discountCode = code;
+        msg.textContent = code + ' applied, ' + Math.round(discount * 100) + '% off.';
+        msg.className = 'disc-msg is-ok';
+      } else {
+        state.discount = 0; state.discountCode = '';
+        msg.textContent = "That code didn't match, double check and try again.";
+        msg.className = 'disc-msg is-bad';
+      }
+      recalc();
+    }
+
+    if(!SUBMIT_ENDPOINT){
+      /* no live endpoint configured yet -- fall back to the static,
+         unlimited-use local list so the page is still testable before
+         adjuis-estimates-Code.gs is deployed */
+      applyResult(DISCOUNT_CODES.hasOwnProperty(code), DISCOUNT_CODES[code]);
+      return;
+    }
+
+    discGoBtn.disabled = true;
+    msg.textContent = 'Checking...';
+    msg.className = 'disc-msg';
+    fetch(SUBMIT_ENDPOINT + '?action=checkCode&code=' + encodeURIComponent(code))
+      .then(function(res){ return res.json(); })
+      .then(function(data){ applyResult(!!data.valid, data.discount || 0); })
+      .catch(function(){ applyResult(false); })
+      .then(function(){ discGoBtn.disabled = false; });
+  });
+
+  recalc();
+})();
+
+/* ---------------------------------------------------------------------- */
+/* Design (quick-turn, flat-rate pieces) -- independent of the Logo Design */
+/* module above: no budget bar, no revision caps, just pick items and add */
+/* them up, same `.pill` look but multi-select (toggle) instead of the    */
+/* exclusive single-pick groups Logo Design uses.                         */
+(function(){
+  var cfg = PRICING.design;
+  var ITEMS = [
+    { key:'businessCard', label:'Business Card Design', desc:'Front and back, print ready.', price:cfg.businessCard },
+    { key:'favicon', label:'Favicon Design', desc:'Browser tab + app icon exports.', price:cfg.favicon },
+    { key:'youtubeHeader', label:'YouTube Header Design', desc:'Channel banner, sized for every device.', price:cfg.youtubeHeader },
+    { key:'socialPost', label:'Social Media Post', desc:'One on-brand post template.', price:cfg.socialPost },
+    { key:'flyer', label:'Flyer Design', desc:'Single-sided, print ready.', price:cfg.flyer },
+    { key:'emailSignature', label:'Email Signature Design', desc:'Clean, on-brand, works in Gmail & Outlook.', price:cfg.emailSignature }
+  ];
+  var state = { items:{}, bundled:false };
+
+  var grid = document.getElementById('grpDesignItems');
+  if(!grid) return; // view not present in this build
+
+  ITEMS.forEach(function(it){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pill';
+    b.dataset.key = it.key;
+    var value = document.createElement('span');
+    value.className = 'pill-value';
+    value.textContent = it.label;
+    var desc = document.createElement('span');
+    desc.className = 'pill-desc';
+    desc.textContent = it.desc;
+    var price = document.createElement('span');
+    price.className = 'pill-price';
+    price.textContent = fmt0(it.price);
+    b.appendChild(value); b.appendChild(desc); b.appendChild(price);
+    grid.appendChild(b);
+  });
+
+  var bundleToggle = document.getElementById('designBundleToggle');
+  var bundleToggleLabel = document.getElementById('designBundleToggleLabel');
+  var totalEl = document.getElementById('designTotal');
+  var totalBarEl = document.getElementById('designTotalBar');
+
+  function subtotal(){
+    return ITEMS.reduce(function(sum, it){ return sum + (state.items[it.key] ? it.price : 0); }, 0);
+  }
+  function recalcDesign(){
+    var sub = subtotal();
+    var total = state.bundled ? sub * (1 - cfg.bundleDiscount) : sub;
+    totalEl.textContent = fmt(total);
+    if(totalBarEl) totalBarEl.textContent = fmt(total);
+
+    var selectedItems = ITEMS.filter(function(it){ return state.items[it.key]; });
+    var cartLines = selectedItems.map(function(it){ return [it.label, fmt0(it.price)]; });
+    if(state.bundled && selectedItems.length) cartLines.push(['Bundle Discount', '-' + Math.round(cfg.bundleDiscount * 100) + '%']);
+    ADJUIS_updateCart('design', { label:'Design', total: total, lines: cartLines });
+  }
+
+  grid.addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    var key = b.dataset.key;
+    state.items[key] = !state.items[key];
+    b.classList.toggle('is-selected', state.items[key]);
+    recalcDesign();
+  });
+
+  bundleToggle.addEventListener('click', function(){
+    state.bundled = !state.bundled;
+    bundleToggle.classList.toggle('is-on', state.bundled);
+    bundleToggle.setAttribute('aria-checked', String(state.bundled));
+    bundleToggleLabel.textContent = state.bundled ? 'Yes' : 'No';
+    recalcDesign();
+  });
+
+  recalcDesign();
+})();
+
+/* ---------------------------------------------------------------------- */
+/* Retainers (Art Direction, Creative Direction) -- both views are the    */
+/* exact same shape (pick a commitment length, see the discounted monthly */
+/* rate + total contract value, submit), so one factory builds both from  */
+/* PRICING.retainers + an element-id map rather than duplicating the      */
+/* logic. Added 2026-10-21.                                               */
+(function(){
+  function buildRetainerModule(opts){
+    var cfg = opts.cfg;
+    var baseMonthly = cfg.hourlyRate * cfg.hoursPerMonth;
+    var state = { months: PRICING.retainers.terms[0].months };
+
+    var grid = document.getElementById(opts.gridId);
+    if(!grid) return; // view not present in this build
+
+    var TERM_DESCRIPTIONS = {
+      3: 'Flat baseline rate.',
+      6: '5% off the monthly rate.',
+      9: '10% off the monthly rate.',
+      12: '15% off the monthly rate, our best rate.'
+    };
+    /* the hours commitment doesn't change by term, just by retainer type --
+       prepended to every pill's desc line (not just the intro copy above
+       the grid) since Corey wants it visible at a glance while comparing
+       terms, not just on first read. Added 2026-10-22. */
+    var hoursLine = cfg.hoursPerWeek + ' hrs/week (~' + cfg.hoursPerMonth + '/mo)';
+
+    PRICING.retainers.terms.forEach(function(term){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pill pill-wide';
+      b.dataset.months = term.months;
+      var value = document.createElement('span');
+      value.className = 'pill-value';
+      value.textContent = term.months + ' Months';
+      var desc = document.createElement('span');
+      desc.className = 'pill-desc';
+      desc.textContent = hoursLine + ' — ' + (TERM_DESCRIPTIONS[term.months] || '');
+      var price = document.createElement('span');
+      price.className = 'pill-price';
+      price.textContent = fmt0(baseMonthly * (1 - term.discount)) + '/mo';
+      b.appendChild(value); b.appendChild(desc); b.appendChild(price);
+      grid.appendChild(b);
+    });
+
+    function selectPill(months){
+      grid.querySelectorAll('.pill').forEach(function(p){
+        p.classList.toggle('is-selected', Number(p.dataset.months) === months);
+      });
+    }
+
+    function currentTerm(){
+      return PRICING.retainers.terms.filter(function(t){ return t.months === state.months; })[0];
+    }
+
+    function recalcRetainer(){
+      var term = currentTerm();
+      var monthly = baseMonthly * (1 - term.discount);
+      var total = monthly * term.months;
+      document.getElementById(opts.monthlyId).textContent = fmt(monthly) + ' / month';
+      document.getElementById(opts.termLabelId).textContent = term.months + ' Months';
+      document.getElementById(opts.totalId).textContent = fmt(total);
+      var totalBarEl = document.getElementById(opts.totalBarId);
+      var totalBarNoteEl = document.getElementById(opts.totalBarNoteId);
+      if(totalBarEl) totalBarEl.textContent = fmt(total);
+      if(totalBarNoteEl) totalBarNoteEl.textContent = fmt(monthly) + '/mo × ' + term.months + ' months';
+
+      ADJUIS_updateCart(opts.cartKey, {
+        label: opts.category,
+        total: total,
+        lines: [ ['Monthly Rate', fmt(monthly) + '/mo'], ['Commitment', term.months + ' months'] ]
+      });
+    }
+
+    grid.addEventListener('click', function(e){
+      var b = e.target.closest('.pill'); if(!b) return;
+      state.months = Number(b.dataset.months);
+      selectPill(state.months);
+      recalcRetainer();
+    });
+
+    selectPill(state.months);
+    recalcRetainer();
+  }
+
+  buildRetainerModule({
+    cfg: PRICING.retainers.artDirection,
+    category: 'Art Direction',
+    cartKey: 'art-direction',
+    gridId: 'grpAdTerm', monthlyId: 'adMonthlyRate', termLabelId: 'adTermLabel', totalId: 'adTotal',
+    totalBarId: 'adTotalBar', totalBarNoteId: 'adTotalBarNote'
+  });
+
+  buildRetainerModule({
+    cfg: PRICING.retainers.creativeDirection,
+    category: 'Creative Direction',
+    cartKey: 'creative-direction',
+    gridId: 'grpCdTerm', monthlyId: 'cdMonthlyRate', termLabelId: 'cdTermLabel', totalId: 'cdTotal',
+    totalBarId: 'cdTotalBar', totalBarNoteId: 'cdTotalBarNote'
+  });
+})();
+
+/* ---------------------------------------------------------------------- */
+/* Checkout / Review Proposal Estimate -- the one shared "send to Adjuis"
+   form, combining every category currently in the cart (see
+   ADJUIS_activeCartKeys() / renderCheckoutView() near the top of this
+   script) into a single submission instead of one per category. */
+(function(){
+  var submitBtn = document.getElementById('checkoutSubmitBtn');
+  if(!submitBtn) return; // view not present in this build
+
+  var lastCheckoutPayload = null;
+
+  submitBtn.addEventListener('click', function(){
+    var name = document.getElementById('checkoutContactName').value.trim();
+    var email = document.getElementById('checkoutContactEmail').value.trim();
+    var msg = document.getElementById('checkoutSubmitMsg');
+    if(!name || !email){
+      msg.textContent = 'Add your name and email so Adjuis can follow up.';
+      msg.className = 'submit-msg is-bad';
+      return;
+    }
+    var keys = ADJUIS_activeCartKeys();
+    if(!keys.length){
+      msg.textContent = 'Add at least one category to your proposal first.';
+      msg.className = 'submit-msg is-bad';
+      return;
+    }
+    var categories = keys.map(function(k){
+      var entry = ADJUIS_CART[k];
+      return { category: entry.label, breakdown: entry.lines, total: entry.total.toFixed(2) };
+    });
+    var grand = keys.reduce(function(sum, k){ return sum + ADJUIS_CART[k].total; }, 0);
+    var payload = {
+      type: 'estimate', name: name, email: email,
+      categories: categories,
+      grandTotal: grand.toFixed(2),
+      submittedAt: new Date().toISOString()
+    };
+    lastCheckoutPayload = payload;
+    submitBtn.disabled = true;
+    function done(ok){
+      submitBtn.disabled = false;
+      if(ok){
+        msg.textContent = '';
+        msg.className = 'submit-msg';
+        document.getElementById('checkoutContactRow').style.display = 'none';
+        document.getElementById('checkoutSubmitSuccess').style.display = '';
+      } else {
+        msg.textContent = 'Something went wrong sending that, try again in a moment.';
+        msg.className = 'submit-msg is-bad';
+      }
+    }
+    if(!SUBMIT_ENDPOINT){ done(true); return; }
+    fetch(SUBMIT_ENDPOINT, {
+      method:'POST', mode:'no-cors',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).then(function(){ done(true); }).catch(function(){ done(false); });
+  });
+
+  function checkoutSummary(){
+    if(!lastCheckoutPayload) return { text:'', filename:'adjuis-proposal-estimate.txt', email:'' };
+    var p = lastCheckoutPayload;
+    var fields = [['Name', p.name], ['Email', p.email]];
+    p.categories.forEach(function(c){
+      fields.push([c.category + ' Total', '$' + c.total]);
+      c.breakdown.forEach(function(pair){ fields.push(['   ' + pair[0], pair[1]]); });
+    });
+    fields.push(['Proposal Total', '$' + p.grandTotal]);
+    var text = buildSummaryText('Adjuis Proposal Estimate', fields);
+    return { text:text, filename:'adjuis-proposal-estimate.txt', email:p.email };
+  }
+  document.getElementById('checkoutDownloadBtn').addEventListener('click', function(){
+    var s = checkoutSummary(); if(s.text) downloadSummaryText(s.filename, s.text);
+  });
+  document.getElementById('checkoutEmailBtn').addEventListener('click', function(){
+    var s = checkoutSummary();
+    emailSummaryCopy(s.email, 'Your Adjuis Proposal Estimate', s.text, document.getElementById('checkoutCopyMsg'));
+  });
+})();
+</script>
