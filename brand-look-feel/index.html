@@ -1048,7 +1048,7 @@ function submitBrandFeel(){
     if(val) answers.push({ question: step.q, answer: val });
   });
 
-  var payload = { type:'questionnaire', name:name, email:email, company:company, phone:phone, answers:answers, submittedAt:new Date().toISOString() };
+  var payload = { type:'questionnaire', session:'Brand Look & Feel', name:name, email:email, company:company, phone:phone, answers:answers, submittedAt:new Date().toISOString() };
   lastSubmission = payload;
 
   function done(ok){
