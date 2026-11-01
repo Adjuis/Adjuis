@@ -1018,8 +1018,8 @@
         <p class="calc-block-label">Send this estimate to Adjuis</p>
         <p class="calc-block-sub">I'll follow up to book a call and talk through the project.</p>
         <div class="contact-row" id="checkoutContactRow">
-          <input class="contact-input" id="checkoutContactName" type="text" placeholder="Your name">
-          <input class="contact-input" id="checkoutContactEmail" type="email" placeholder="Your email">
+          <input class="contact-input" id="checkoutContactName" type="text" placeholder="Your name" autocomplete="off">
+          <input class="contact-input" id="checkoutContactEmail" type="email" placeholder="Your email" autocomplete="off">
           <button class="submit-cta" id="checkoutSubmitBtn">Submit Estimate</button>
           <p class="submit-msg" id="checkoutSubmitMsg"></p>
         </div>
@@ -2278,23 +2278,38 @@ function renderCheckoutView(){
 
     function selectPill(months){
       grid.querySelectorAll('.pill').forEach(function(p){
-        p.classList.toggle('is-selected', Number(p.dataset.months) === months);
+        p.classList.toggle('is-selected', months != null && Number(p.dataset.months) === months);
       });
     }
 
     function currentTerm(){
+      if(state.months == null) return null;
       return PRICING.retainers.terms.filter(function(t){ return t.months === state.months; })[0];
     }
 
+    /* Clicking the term that's already selected clears it entirely (same
+       as unchecking an item on the Design page) -- added 2026-11-02, see
+       state.months going to null below. Until then this view had no way
+       to back out of a term short of removing it from the Review Proposal
+       Estimate page. */
     function recalcRetainer(){
       var term = currentTerm();
+      var totalBarEl = document.getElementById(opts.totalBarId);
+      var totalBarNoteEl = document.getElementById(opts.totalBarNoteId);
+      if(!term){
+        document.getElementById(opts.monthlyId).textContent = 'Select a term below';
+        document.getElementById(opts.termLabelId).textContent = 'None selected';
+        document.getElementById(opts.totalId).textContent = fmt(0);
+        if(totalBarEl) totalBarEl.textContent = fmt(0);
+        if(totalBarNoteEl) totalBarNoteEl.textContent = 'Pick a commitment length below';
+        ADJUIS_updateCart(opts.cartKey, { label: opts.category, total: 0, lines: [] });
+        return;
+      }
       var monthly = baseMonthly * (1 - term.discount);
       var total = monthly * term.months;
       document.getElementById(opts.monthlyId).textContent = fmt(monthly) + ' / month';
       document.getElementById(opts.termLabelId).textContent = term.months + ' Months';
       document.getElementById(opts.totalId).textContent = fmt(total);
-      var totalBarEl = document.getElementById(opts.totalBarId);
-      var totalBarNoteEl = document.getElementById(opts.totalBarNoteId);
       if(totalBarEl) totalBarEl.textContent = fmt(total);
       if(totalBarNoteEl) totalBarNoteEl.textContent = fmt(monthly) + '/mo × ' + term.months + ' months';
 
@@ -2307,7 +2322,8 @@ function renderCheckoutView(){
 
     grid.addEventListener('click', function(e){
       var b = e.target.closest('.pill'); if(!b) return;
-      state.months = Number(b.dataset.months);
+      var months = Number(b.dataset.months);
+      state.months = (state.months === months) ? null : months;
       selectPill(state.months);
       recalcRetainer();
     });
@@ -2379,6 +2395,13 @@ function renderCheckoutView(){
         msg.className = 'submit-msg';
         document.getElementById('checkoutContactRow').style.display = 'none';
         document.getElementById('checkoutSubmitSuccess').style.display = '';
+        // Clear the fields now that this estimate is in -- belt and
+        // suspenders alongside autocomplete="off" on the inputs
+        // themselves, so a later visitor on the same browser never sees
+        // a previous person's name and email sitting here. Added
+        // 2026-11-02.
+        document.getElementById('checkoutContactName').value = '';
+        document.getElementById('checkoutContactEmail').value = '';
       } else {
         msg.textContent = 'Something went wrong sending that, try again in a moment.';
         msg.className = 'submit-msg is-bad';
